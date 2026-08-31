@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Central de Postagens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg: #0B0D12;
+    --surface: #12151C;
+    --row: #151821;
+    --row-hover: #191D28;
+    --line: rgba(255,255,255,0.06);
+    --text: #F3F4F7;
+    --muted: #7B8194;
+    --muted-2: #565C6C;
+    --amber: #F5A623;
+    --good: #35D399;
+    --bad: #FF5A5A;
+    --tiktok-a:#25F4EE; --tiktok-b:#FE2C55;
+    --youtube-a:#FF512F; --youtube-b:#DD2476;
+    --instagram-a:#F58529; --instagram-b:#8134AF;
+    --facebook-a:#1877F2; --facebook-b:#4C8DFF;
+    --font-display: 'Space Grotesk', 'Inter', sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--bg); color: var(--text); font-family: var(--font-body);
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+  }
+  .wrap{ max-width: 720px; margin:0 auto; padding: 22px 16px 90px; }
+
+  /* header */
+  .live-row{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .live-dot{
+    width:8px; height:8px; border-radius:50%; background: var(--amber);
+    box-shadow: 0 0 0 0 rgba(245,166,35,0.6);
+    animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse{
+    0%{ box-shadow: 0 0 0 0 rgba(245,166,35,0.55); }
+    70%{ box-shadow: 0 0 0 7px rgba(245,166,35,0); }
+    100%{ box-shadow: 0 0 0 0 rgba(245,166,35,0); }
+  }
+  .live-label{ font-family: var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color: var(--amber); }
+  h1.title{ font-family: var(--font-display); font-weight:700; font-size: 30px; margin: 0 0 4px; letter-spacing:-0.01em; }
+  .subtitle{ color: var(--muted); font-size: 13.5px; margin-bottom:18px; }
+
+  .stat-grid{ display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin-bottom: 22px; }
+  .stat-box{ background: var(--row); border-radius:14px; padding:14px 16px; }
+  .stat-box .num{ font-family: var(--font-mono); font-weight:700; font-size:26px; }
+  .stat-box .lbl{ color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; margin-top:2px; }
+
+  /* segmented tabs */
+  .tabs{
+    display:flex; gap:3px; background: var(--surface); border-radius:12px; padding:4px;
+    margin-bottom: 20px; overflow-x:auto;
+  }
+  .tab{
+    flex:1; text-align:center; white-space:nowrap; font-family:var(--font-body); font-weight:600; font-size:12.5px;
+    color: var(--muted); background:transparent; border:none; cursor:pointer; padding:9px 10px; border-radius:9px;
+    transition: background .15s, color .15s;
+  }
+  .tab.active{ background: var(--row-hover); color: var(--text); }
+
+  .panel{ display:none; }
+  .panel.active{ display:block; animation: fadein .16s ease; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(3px);} to{opacity:1; transform:none;} }
+
+  /* platform section */
+  .plat-divider{ border:none; border-top:1px solid var(--line); margin: 22px 0 14px; }
+  .plat-divider:first-child{ display:none; }
+  .plat-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .pill{
+    display:inline-block; font-family:var(--font-mono); font-weight:700; font-size:11px;
+    letter-spacing:.06em; text-transform:uppercase; color:#0A0B0F; padding:5px 12px; border-radius:20px;
+  }
+  .pill[data-platform="tiktok"]{ background: linear-gradient(120deg, var(--tiktok-a), var(--tiktok-b)); color:#08121A;}
+  .pill[data-platform="youtube"]{ background: linear-gradient(120deg, var(--youtube-a), var(--youtube-b)); color:#fff;}
+  .pill[data-platform="instagram"]{ background: linear-gradient(120deg, var(--instagram-a), var(--instagram-b)); color:#fff;}
+  .pill[data-platform="facebook"]{ background: linear-gradient(120deg, var(--facebook-a), var(--facebook-b)); color:#fff;}
+  .plat-count{ font-family:var(--font-mono); font-size:12px; color:var(--muted); }
+
+  /* rows */
+  .row{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background: var(--row); border-radius:14px; padding:14px 16px; margin-bottom:8px;
+  }
+  .row .rname{ font-weight:600; font-size:14.5px; }
+  .row .rsub{ color:var(--muted); font-size:12px; margin-top:2px; font-family:var(--font-mono); }
+  .row-left{ min-width:0; flex:1; }
+  .row-left .rname{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .del-x{ background:none; border:none; color:var(--muted-2); cursor:pointer; font-size:13px; padding:4px 6px; }
+  .del-x:hover{ color: var(--bad); }
+
+  /* stepper */
+  .stepper{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
+  .step-btn{
+    width:30px; height:30px; border-radius:9px; border:1px solid var(--line); background: var(--surface);
+    color: var(--text); font-size:16px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    line-height:1;
+  }
+  .step-btn:hover{ background: var(--row-hover); }
+  .step-val{ font-family:var(--font-mono); font-weight:700; font-size:15px; min-width:20px; text-align:center; }
+
+  /* followers edit */
+  .fw-edit{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .fw-input{
+    width:100px; background: var(--surface); border:1px solid var(--line); color:var(--text);
+    font-family: var(--font-mono); font-size:14px; border-radius:9px; padding:7px 9px; text-align:right;
+  }
+  .fw-delta{ font-family:var(--font-mono); font-size:11px; padding:3px 7px; border-radius:20px; flex-shrink:0; white-space:nowrap; }
+  .fw-delta.pos{ color: var(--good); background: rgba(53,211,153,0.12); }
+  .fw-delta.neg{ color: var(--bad); background: rgba(255,90,90,0.12); }
+  .fw-delta.zero{ color: var(--muted-2); background: rgba(255,255,255,0.04); }
+
+  .add-row{
+    border:1px dashed var(--line); border-radius:14px; padding:13px 16px; text-align:center;
+    color:var(--muted); font-size:13px; cursor:pointer; margin-bottom:8px;
+  }
+  .add-row:hover{ color:var(--text); border-color: var(--good); }
+
+  .section-title{ font-family: var(--font-display); font-weight:700; font-size:17px; margin: 4px 0 4px; }
+  .section-sub{ color:var(--muted); font-size:13px; margin: 0 0 16px; }
+
+  .date-toggle{ background:none; border:none; color:var(--muted); font-size:12px; text-decoration:underline; cursor:pointer; padding:0; margin-bottom:14px; }
+  .date-picker-wrap{ display:none; margin-bottom:16px; }
+  .date-picker-wrap.show{ display:block; }
+  input[type="date"]{
+    background: var(--row); border:1px solid var(--line); color:var(--text); border-radius:9px;
+    padding:8px 10px; font-family: var(--font-mono); font-size:13.5px;
+  }
+
+  /* heatmap */
+  .heatmap-scroll{ overflow-x:auto; padding-bottom:6px; }
+  table.heatmap{ border-collapse:separate; border-spacing:4px; font-size:11px; }
+  table.heatmap th{ color:var(--muted); font-weight:500; text-align:center; font-family:var(--font-mono); font-size:9.5px; padding-bottom:4px;}
+  table.heatmap td.acc-label{
+    text-align:left; padding-right:10px; white-space:nowrap; color:var(--text); font-size:12px; font-weight:600;
+    position:sticky; left:0; background:var(--bg);
+  }
+  table.heatmap td.cell{ width:24px; height:24px; text-align:center; border-radius:6px; font-family:var(--font-mono); font-size:10px; font-weight:700; }
+
+  /* ranking */
+  .rank-row{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .rank-plat{ font-family:var(--font-mono); font-size:9.5px; font-weight:700; padding:3px 6px; border-radius:6px; flex-shrink:0; }
+  .rank-name{ width:150px; flex-shrink:0; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .rank-bar-track{ flex:1; background:var(--surface); border-radius:8px; height:18px; overflow:hidden;}
+  .rank-bar-fill{ height:100%; border-radius:8px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px;}
+  .rank-val{ font-family:var(--font-mono); font-size:10.5px; color:#0A0B0F; font-weight:700;}
+
+  /* evolution */
+  .chart-controls{ display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  select{
+    background: var(--row); border:1px solid var(--line); color:var(--text); border-radius:9px;
+    padding:8px 10px; font-family: var(--font-body); font-size:13.5px;
+  }
+  .chart-box{ background: var(--surface); border-radius:14px; padding:16px; }
+  .chart-empty{ color:var(--muted); font-size:13px; padding: 24px 10px; text-align:center; }
+  .chart-label{ font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin: 0 0 8px 2px; }
+  .evo-item{ margin-bottom:8px; }
+  .evo-chevron{ color:var(--muted); font-size:13px; flex-shrink:0; }
+  .evo-expand{ padding: 12px 2px 4px; }
+
+  /* history */
+  .hist-date-head{ font-family: var(--font-display); font-weight:600; font-size:13.5px; color:var(--text); margin: 20px 0 8px; }
+  .hist-date-head .d{ color:var(--muted); font-weight:400; font-family:var(--font-mono); font-size:11px; margin-left:6px;}
+  .hist-row{ display:flex; align-items:center; gap:10px; background:var(--row); border-radius:12px; padding:10px 14px; margin-bottom:6px; font-size:12.5px; }
+  .hist-row .hname{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;}
+  .hist-row .hval{ font-family:var(--font-mono); color:var(--muted); font-size:12px; width:70px; text-align:right; }
+
+  .empty-state{ color:var(--muted); font-size:13px; padding: 20px 0; }
+  .btn{
+    font-family: var(--font-body); font-weight:700; font-size: 13.5px; background: var(--good); color:#06120D;
+    border:none; border-radius:10px; padding: 10px 18px; cursor:pointer;
+  }
+  .btn.secondary{ background: var(--row); color:var(--text); border:1px solid var(--line); }
+  .btn.small{ padding:6px 11px; font-size:12px; }
+
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background: var(--good); color:#06120D; padding:10px 18px; border-radius:10px;
+    font-weight:700; font-size:13px; opacity:0; pointer-events:none; transition: opacity .2s, transform .2s; z-index:50;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+  .toast.err{ background: var(--bad); }
+
+  .save-banner{
+    display:none; align-items:center; gap:8px; background: rgba(255,90,90,0.12); border:1px solid rgba(255,90,90,0.35);
+    color:#FFB3B3; font-size:12.5px; padding:9px 12px; border-radius:10px; margin-bottom:14px;
+  }
+  .save-banner.show{ display:flex; }
+  .save-banner button{
+    background:none; border:1px solid rgba(255,90,90,0.5); color:#FFB3B3; border-radius:7px; font-size:11.5px;
+    padding:4px 9px; cursor:pointer; margin-left:auto;
+  }
+
+  .modal-bg{ display:none; position:fixed; inset:0; background:rgba(6,7,10,0.72); z-index:60; align-items:center; justify-content:center; padding:16px; }
+  .modal-bg.show{ display:flex; }
+  .modal{ background: var(--surface); border-radius:16px; padding: 22px; width:100%; max-width:380px; max-height:88vh; overflow-y:auto; }
+  .modal h3{ margin:0 0 14px; font-family:var(--font-display); font-size:16px; }
+  .modal label{ font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .modal input, .modal select, .modal textarea{ width:100%; margin: 5px 0 12px; }
+  .modal textarea{
+    background: var(--row); border:1px solid var(--line); color:var(--text); border-radius:9px;
+    padding:8px 10px; font-family: var(--font-body); font-size:13.5px; resize:vertical; min-height:64px;
+  }
+  .modal-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:6px; }
+
+  /* roteiros */
+  .rot-add-btn{
+    width:100%; background: var(--good); color:#06120D; border:none; border-radius:12px;
+    font-family:var(--font-body); font-weight:700; font-size:13.5px; padding:12px; cursor:pointer; margin-bottom:18px;
+  }
+  .rot-day-head{ font-family: var(--font-display); font-weight:700; font-size:15px; color:var(--text); margin: 22px 0 10px; }
+  .rot-day-head:first-child{ margin-top:0; }
+  .rot-channel-label{ font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin: 12px 0 6px 2px; display:flex; align-items:center; gap:6px; }
+  .rot-card{ background: var(--row); border-radius:14px; padding:14px 16px; margin-bottom:8px; }
+  .rot-card-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .rot-title{ font-weight:600; font-size:14.5px; }
+  .rot-caption{ color:var(--muted); font-size:12.5px; margin-top:4px; white-space:pre-wrap; }
+  .rot-script-input{ min-height:120px; }
+  .rot-script{ color:var(--text); font-size:12.5px; margin-top:8px; white-space:pre-wrap; background:rgba(255,255,255,0.04); border-radius:10px; padding:10px 12px; line-height:1.5; }
+  .rot-script-label{ font-family:var(--font-mono); font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-top:8px; }
+  .rot-links{ margin-top:8px; display:flex; flex-direction:column; gap:3px; }
+  .rot-links a{ color:#8FB8FF; font-size:11.5px; font-family:var(--font-mono); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
+  .rot-links a:hover{ text-decoration:underline; }
+  .rot-status{ font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.06em; padding:3px 9px; border-radius:20px; flex-shrink:0; white-space:nowrap; }
+  .rot-status.rascunho{ color:var(--amber); background: rgba(245,166,35,0.14); }
+  .rot-status.publicado{ color: var(--good); background: rgba(53,211,153,0.14); }
+  .rot-card-actions{ display:flex; gap:8px; margin-top:12px; }
+  .rot-card-actions .btn{ padding:7px 12px; font-size:12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="live-row"><span class="live-dot"></span><span class="live-label" id="live-label">Ao vivo — 17 contas</span></div>
+  <h1 class="title">Central de Postagens</h1>
+  <div class="subtitle" id="subtitle-date"></div>
+
+  <div class="save-banner" id="save-banner">
+    <span>Não consegui salvar as últimas mudanças. Elas continuam aqui na tela.</span>
+    <button id="retry-save-btn">Tentar salvar de novo</button>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-box"><div class="num" id="stat-today">0</div><div class="lbl">Hoje</div></div>
+    <div class="stat-box"><div class="num" id="stat-7d">0</div><div class="lbl">7 dias</div></div>
+    <div class="stat-box"><div class="num" id="stat-total">0</div><div class="lbl">Total</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="hoje">Hoje</button>
+    <button class="tab" data-tab="seguidores">Seguidores</button>
+    <button class="tab" data-tab="grade">Grade</button>
+    <button class="tab" data-tab="evolucao">Evolução</button>
+    <button class="tab" data-tab="historico">Histórico</button>
+    <button class="tab" data-tab="roteiros">Roteiros</button>
+  </div>
+
+  <!-- HOJE -->
+  <div class="panel active" id="panel-hoje">
+    <button class="date-toggle" id="toggle-date">registrar em outro dia</button>
+    <div class="date-picker-wrap" id="date-picker-wrap">
+      <input type="date" id="work-date">
+    </div>
+    <div id="hoje-body"></div>
+  </div>
+
+  <!-- SEGUIDORES -->
+  <div class="panel" id="panel-seguidores">
+    <p class="section-sub">Atualize o número de seguidores/inscritos de cada conta. A variação é comparada com o último valor registrado antes de hoje.</p>
+    <div id="seguidores-body"></div>
+  </div>
+
+  <!-- GRADE -->
+  <div class="panel" id="panel-grade">
+    <div class="section-title">Onde eu estou postando mais</div>
+    <p class="section-sub">Cada célula mostra quantos posts saíram naquela conta, naquele dia.</p>
+    <div class="heatmap-scroll"><div id="heatmap-body"></div></div>
+    <div class="section-title" style="margin-top:28px;">Ranking por total de posts</div>
+    <p class="section-sub">Soma de todos os vídeos/posts já registrados por conta.</p>
+    <div id="ranking-body"></div>
+  </div>
+
+  <!-- EVOLUÇÃO -->
+  <div class="panel" id="panel-evolucao">
+    <p class="section-sub">Clique numa conta pra ver a evolução de posts e de seguidores.</p>
+    <div id="evolucao-body"></div>
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div class="panel" id="panel-historico">
+    <p class="section-sub">Todos os dias já lançados, mais recentes primeiro.</p>
+    <div id="history-body"></div>
+  </div>
+
+  <!-- ROTEIROS -->
+  <div class="panel" id="panel-roteiros">
+    <p class="section-sub">Título, legenda, links de vídeo pra edição e canal de publicação — organizado por dia.</p>
+    <button class="rot-add-btn" id="rot-add-btn">+ Novo roteiro</button>
+    <div id="roteiros-body"></div>
+  </div>
+
+</div>
+
+<div class="modal-bg" id="add-modal">
+  <div class="modal">
+    <h3>Nova conta</h3>
+    <label>Plataforma</label>
+    <select id="new-platform">
+      <option value="tiktok">TikTok</option>
+      <option value="youtube">YouTube</option>
+      <option value="instagram">Instagram</option>
+      <option value="facebook">Facebook</option>
+    </select>
+    <label>Nome / @ da conta</label>
+    <input type="text" id="new-name" placeholder="ex: renan.novo">
+    <label>Seguidores atuais</label>
+    <input type="number" id="new-followers" value="0" min="0">
+    <div class="modal-actions">
+      <button class="btn secondary small" id="cancel-add">Cancelar</button>
+      <button class="btn small" id="confirm-add">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="rot-modal">
+  <div class="modal">
+    <h3 id="rot-modal-title">Novo roteiro</h3>
+    <label>Título</label>
+    <input type="text" id="rot-title" placeholder="ex: Bastidores do treino">
+    <label>Roteiro</label>
+    <textarea id="rot-script" class="rot-script-input" placeholder="Escreva aqui o roteiro/texto do vídeo (fala, cenas, ganchos...)"></textarea>
+    <label>Legenda</label>
+    <textarea id="rot-caption" placeholder="Legenda que vai junto na publicação"></textarea>
+    <label>Links dos vídeos (edição)</label>
+    <textarea id="rot-links" placeholder="Um link por linha"></textarea>
+    <label>Canal</label>
+    <select id="rot-channel"></select>
+    <label>Data de publicação</label>
+    <input type="date" id="rot-date">
+    <div class="modal-actions">
+      <button class="btn secondary small" id="rot-cancel">Cancelar</button>
+      <button class="btn small" id="rot-confirm">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Salvo</div>
+
+<script>
+const PLATFORMS = {
+  tiktok:    { label: 'TikTok',    hex:'#FE2C55', abbr:'TT' },
+  youtube:   { label: 'YouTube',   hex:'#FF512F', abbr:'YT' },
+  instagram: { label: 'Instagram', hex:'#DD2A7B', abbr:'IG' },
+  facebook:  { label: 'Facebook',  hex:'#1877F2', abbr:'FB' },
+};
+const TODAY = new Date().toISOString().slice(0,10);
+const STORAGE_KEY = 'tracker-data-v1';
+
+const SUPABASE_URL = 'https://nfqaqomklgddyitwvkin.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mcWFxb21rbGdkZHlpdHd2a2luIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODMzMjQsImV4cCI6MjEwMzc1OTMyNH0.0cbVbC48EO-6oeNcqVHI3upfcEhBgvHDJ7S5H9yIHLU';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const STATE_ROW_ID = 'main';
+
+let state = { accounts: [], entries: [], roteiros: [] };
+let saveTimer = null;
+let pendingSave = false;
+let saveRetryCount = 0;
+let saveInFlight = false;
+
+function seed(){
+  const accounts = [
+    {id:'tt-1', platform:'tiktok', name:'renan.sarabia.fut', initialFollowers:0},
+    {id:'tt-2', platform:'tiktok', name:'renansarabia02', initialFollowers:5971},
+    {id:'tt-3', platform:'tiktok', name:'ohomemaviao', initialFollowers:2},
+    {id:'tt-4', platform:'tiktok', name:'renan.fillgueiras', initialFollowers:9},
+    {id:'tt-5', platform:'tiktok', name:'renanssarabia', initialFollowers:20},
+    {id:'tt-6', platform:'tiktok', name:'renan.ofilgueiras', initialFollowers:5},
+    {id:'tt-7', platform:'tiktok', name:'renanssarabia01', initialFollowers:6},
+    {id:'yt-1', platform:'youtube', name:'Renan Filgueiras', initialFollowers:0},
+    {id:'yt-2', platform:'youtube', name:'Modo padrão', initialFollowers:90},
+    {id:'yt-3', platform:'youtube', name:'renansarabia', initialFollowers:25},
+    {id:'yt-4', platform:'youtube', name:'renan.ofilgueiras', initialFollowers:3},
+    {id:'yt-5', platform:'youtube', name:'Renan Filgueiras II', initialFollowers:3},
+    {id:'fb-1', platform:'facebook', name:'Renan sarabia 01', initialFollowers:0},
+    {id:'fb-2', platform:'facebook', name:'Renan Sarabia Cortes', initialFollowers:12630},
+    {id:'ig-1', platform:'instagram', name:'Renan Sarabia 01', initialFollowers:2},
+    {id:'ig-2', platform:'instagram', name:'Renan sarabia cortes', initialFollowers:374},
+    {id:'ig-3', platform:'instagram', name:'Renan Sarabia', initialFollowers:262},
+  ];
+  const entries = accounts.map(a => ({date: '2026-08-29', accountId: a.id, posts: 0, followers: a.initialFollowers}));
+  return { accounts, entries, roteiros: [] };
+}
+
+async function loadData(){
+  // retry a few times before concluding there's really nothing saved yet —
+  // avoids overwriting real data with the seed if the storage service just hiccups
+  for(let attempt=0; attempt<3; attempt++){
+    try{
+      const { data, error } = await sb.from('tracker_state').select('data').eq('id', STATE_ROW_ID).maybeSingle();
+      if(error) throw error;
+      if(data && data.data){
+        state = data.data;
+        if(!state.roteiros) state.roteiros = [];
+        return;
+      }
+      break; // request succeeded and genuinely found nothing -> first run
+    }catch(e){
+      console.error('Supabase load failed', e);
+      if(attempt < 2){ await new Promise(r=>setTimeout(r, 700)); continue; }
+    }
+  }
+  state = seed();
+  await saveData(true);
+}
+function showBanner(){ document.getElementById('save-banner').classList.add('show'); }
+function hideBanner(){ document.getElementById('save-banner').classList.remove('show'); }
+
+async function attemptSave(){
+  if(saveInFlight) return; // avoid overlapping writes
+  saveInFlight = true;
+  try{
+    const { error } = await sb.from('tracker_state').upsert({ id: STATE_ROW_ID, data: state, updated_at: new Date().toISOString() });
+    if(error) throw error;
+    pendingSave = false;
+    saveRetryCount = 0;
+    hideBanner();
+  }catch(e){
+    console.error('Supabase save failed', e);
+    pendingSave = true;
+    showBanner();
+    // automatic retry with backoff, up to 5 tries
+    if(saveRetryCount < 5){
+      saveRetryCount++;
+      setTimeout(()=>{ saveInFlight=false; attemptSave(); }, Math.min(1500 * saveRetryCount, 8000));
+      return;
+    }
+  }
+  saveInFlight = false;
+}
+
+async function saveData(immediate){
+  if(immediate){
+    await attemptSave();
+    return;
+  }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{ attemptSave(); }, 350);
+}
+
+document.getElementById('retry-save-btn').addEventListener('click', ()=>{
+  saveRetryCount = 0;
+  attemptSave();
+});
+
+window.addEventListener('beforeunload', (e)=>{
+  if(pendingSave){ e.preventDefault(); e.returnValue = ''; }
+});
+
+function showToast(msg, isError){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.toggle('err', !!isError); t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 1300);
+}
+function escapeHtml(s){ return s.replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtNum(n){ return new Intl.NumberFormat('pt-BR').format(n); }
+function fmtDate(d){ const [y,m,day] = d.split('-'); return `${day}/${m}`; }
+function hexToRgba(hex, alpha){
+  const h = hex.replace('#',''); const r=parseInt(h.substring(0,2),16), g=parseInt(h.substring(2,4),16), b=parseInt(h.substring(4,6),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ---- derived ----
+function entriesFor(accountId){ return state.entries.filter(e=>e.accountId===accountId).sort((a,b)=>a.date.localeCompare(b.date)); }
+function latestFollowers(accountId, beforeDate){
+  let es = entriesFor(accountId);
+  if(beforeDate) es = es.filter(e=> e.date < beforeDate);
+  if(es.length) return es[es.length-1].followers;
+  const acc = state.accounts.find(a=>a.id===accountId);
+  return acc ? acc.initialFollowers : 0;
+}
+function totalPosts(accountId){ return entriesFor(accountId).reduce((s,e)=> s+(e.posts||0), 0); }
+function followerDelta(accountId, date){
+  const es = entriesFor(accountId);
+  const idx = es.findIndex(e=>e.date===date);
+  if(idx===-1) return 0;
+  const acc = state.accounts.find(a=>a.id===accountId);
+  const prevValue = idx===0 ? (acc ? acc.initialFollowers : es[idx].followers) : es[idx-1].followers;
+  return es[idx].followers - prevValue;
+}
+function deltaBadge(delta){
+  const cls = delta>0 ? 'pos' : (delta<0 ? 'neg' : 'zero');
+  const label = delta>0 ? ('▲ +'+fmtNum(delta)) : (delta<0 ? ('▼ '+fmtNum(delta)) : '—');
+  return `<span class="fw-delta ${cls}">${label}</span>`;
+}
+function getEntry(date, accountId){ return state.entries.find(e=>e.date===date && e.accountId===accountId); }
+function ensureEntry(date, accountId){
+  let e = getEntry(date, accountId);
+  if(!e){ e = {date, accountId, posts:0, followers: latestFollowers(accountId)}; state.entries.push(e); }
+  return e;
+}
+function allDatesSorted(){ return [...new Set(state.entries.map(e=>e.date))].sort(); }
+function last7Sum(){
+  const cutoff = new Date(TODAY+'T00:00:00'); cutoff.setDate(cutoff.getDate()-6);
+  const cutoffStr = cutoff.toISOString().slice(0,10);
+  return state.entries.filter(e=> e.date>=cutoffStr && e.date<=TODAY).reduce((s,e)=> s+(e.posts||0), 0);
+}
+
+function currentWorkDate(){
+  const wd = document.getElementById('work-date');
+  return (wd && wd.value) ? wd.value : TODAY;
+}
+
+// ---- top stats ----
+function renderTopStats(){
+  document.getElementById('subtitle-date').textContent = 'Hoje é ' + fmtDate(TODAY) + '/' + TODAY.slice(2,4);
+  document.getElementById('live-label').textContent = 'Ao vivo — ' + state.accounts.length + ' contas';
+  const postsToday = state.entries.filter(e=>e.date===TODAY).reduce((s,e)=>s+(e.posts||0),0);
+  document.getElementById('stat-today').textContent = fmtNum(postsToday);
+  document.getElementById('stat-7d').textContent = fmtNum(last7Sum());
+  const total = state.accounts.reduce((s,a)=> s+totalPosts(a.id), 0);
+  document.getElementById('stat-total').textContent = fmtNum(total);
+}
+
+// ---- HOJE tab: stepper rows ----
+function renderHoje(){
+  const date = currentWorkDate();
+  let html = '';
+  Object.keys(PLATFORMS).forEach(pk=>{
+    const p = PLATFORMS[pk];
+    const accs = state.accounts.filter(a=>a.platform===pk);
+    const todayCount = accs.reduce((s,a)=>{ const e=getEntry(date,a.id); return s+(e?e.posts:0); },0);
+    html += `<hr class="plat-divider">
+    <div class="plat-head">
+      <span class="pill" data-platform="${pk}">${p.label}</span>
+      <span class="plat-count">${todayCount} hoje</span>
+    </div>`;
+    accs.forEach(a=>{
+      const e = getEntry(date, a.id);
+      const count = e ? (e.posts||0) : 0;
+      html += `<div class="row">
+        <div class="row-left">
+          <div class="rname">${escapeHtml(a.name)}</div>
+          <div class="rsub">${fmtNum(latestFollowers(a.id))} seguidores</div>
+        </div>
+        <div class="stepper">
+          <button class="step-btn" data-step="-1" data-acc="${a.id}">−</button>
+          <span class="step-val" id="val-${a.id}">${count}</span>
+          <button class="step-btn" data-step="1" data-acc="${a.id}">+</button>
+        </div>
+      </div>`;
+    });
+    html += `<div class="add-row" data-add-platform="${pk}">+ adicionar conta</div>`;
+  });
+  document.getElementById('hoje-body').innerHTML = html;
+
+  document.querySelectorAll('[data-step]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const accId = btn.getAttribute('data-acc');
+      const delta = parseInt(btn.getAttribute('data-step'));
+      const d = currentWorkDate();
+      const e = ensureEntry(d, accId);
+      e.posts = Math.max(0, (e.posts||0) + delta);
+      document.getElementById('val-'+accId).textContent = e.posts;
+      await saveData(false);
+      renderAll();
+    });
+  });
+  document.querySelectorAll('[data-add-platform]').forEach(el=>{
+    el.addEventListener('click', ()=> openAddModal(el.getAttribute('data-add-platform')));
+  });
+}
+
+document.getElementById('toggle-date').addEventListener('click', ()=>{
+  const wrap = document.getElementById('date-picker-wrap');
+  wrap.classList.toggle('show');
+  if(!document.getElementById('work-date').value) document.getElementById('work-date').value = TODAY;
+});
+document.getElementById('work-date').addEventListener('change', renderHoje);
+
+// ---- SEGUIDORES tab ----
+function renderSeguidores(){
+  let html = '';
+  Object.keys(PLATFORMS).forEach(pk=>{
+    const p = PLATFORMS[pk];
+    const accs = state.accounts.filter(a=>a.platform===pk);
+    if(!accs.length) return;
+    html += `<hr class="plat-divider"><div class="plat-head"><span class="pill" data-platform="${pk}">${p.label}</span></div>`;
+    accs.forEach(a=>{
+      const current = latestFollowers(a.id);
+      const prevBeforeToday = latestFollowers(a.id, TODAY);
+      const todayEntry = getEntry(TODAY, a.id);
+      const delta = todayEntry ? (todayEntry.followers - prevBeforeToday) : 0;
+      const deltaClass = delta>0 ? 'pos' : (delta<0 ? 'neg' : 'zero');
+      const deltaLabel = delta>0 ? ('+'+fmtNum(delta)) : (delta<0 ? fmtNum(delta) : '—');
+      html += `<div class="row">
+        <div class="row-left">
+          <div class="rname">${escapeHtml(a.name)}</div>
+          <div class="rsub">${totalPosts(a.id)} posts no total</div>
+        </div>
+        <div class="fw-edit">
+          <span class="fw-delta ${deltaClass}">${deltaLabel}</span>
+          <input type="number" class="fw-input" data-fw-acc="${a.id}" value="${current}">
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('seguidores-body').innerHTML = html;
+
+  document.querySelectorAll('[data-fw-acc]').forEach(inp=>{
+    inp.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ inp.blur(); } });
+    inp.addEventListener('change', async ()=>{
+      const accId = inp.getAttribute('data-fw-acc');
+      const val = parseInt(inp.value) || 0;
+      const e = ensureEntry(TODAY, accId);
+      e.followers = val;
+      await saveData(false);
+      showToast('Seguidores atualizados');
+      renderAll();
+    });
+  });
+}
+
+// ---- modal ----
+function openAddModal(platform){
+  document.getElementById('new-platform').value = platform;
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-followers').value = 0;
+  document.getElementById('add-modal').classList.add('show');
+}
+document.getElementById('cancel-add').addEventListener('click', ()=> document.getElementById('add-modal').classList.remove('show'));
+document.getElementById('confirm-add').addEventListener('click', async ()=>{
+  const platform = document.getElementById('new-platform').value;
+  const name = document.getElementById('new-name').value.trim();
+  const followers = parseInt(document.getElementById('new-followers').value) || 0;
+  if(!name){ alert('Dê um nome pra conta.'); return; }
+  const id = platform.slice(0,2) + '-' + Date.now();
+  state.accounts.push({id, platform, name, initialFollowers: followers});
+  state.entries.push({date: TODAY, accountId: id, posts: 0, followers: followers});
+  await saveData(true);
+  document.getElementById('add-modal').classList.remove('show');
+  showToast('Conta adicionada');
+  renderAll();
+});
+
+// ---- GRADE (heatmap + ranking) ----
+function last14Days(){
+  const days = []; const base = new Date(TODAY+'T00:00:00');
+  for(let i=13;i>=0;i--){ const d=new Date(base); d.setDate(d.getDate()-i); days.push(d.toISOString().slice(0,10)); }
+  return days;
+}
+function renderGrade(){
+  const days = last14Days();
+  let html = '<table class="heatmap"><thead><tr><th></th>';
+  days.forEach(d=> html += `<th>${fmtDate(d)}</th>`);
+  html += '</tr></thead><tbody>';
+  Object.keys(PLATFORMS).forEach(pk=>{
+    const p = PLATFORMS[pk];
+    const accs = state.accounts.filter(a=>a.platform===pk);
+    if(!accs.length) return;
+    html += `<tr><td colspan="${days.length+1}" style="padding:12px 0 6px;"><span class="pill" data-platform="${pk}">${p.label}</span></td></tr>`;
+    accs.forEach(a=>{
+      html += `<tr><td class="acc-label">${escapeHtml(a.name)}</td>`;
+      days.forEach(d=>{
+        const e = getEntry(d, a.id); const count = e ? (e.posts||0) : 0;
+        const alpha = count===0 ? 0.06 : Math.min(0.25+count*0.18,1);
+        html += `<td class="cell" style="background:${hexToRgba(p.hex,alpha)}; color:${count>0?'#0A0B0F':'var(--muted-2)'}">${count>0?count:''}</td>`;
+      });
+      html += '</tr>';
+    });
+  });
+  html += '</tbody></table>';
+  document.getElementById('heatmap-body').innerHTML = html;
+
+  const ranked = [...state.accounts].map(a=>({...a, total: totalPosts(a.id)})).sort((x,y)=>y.total-x.total);
+  const max = Math.max(1, ...ranked.map(a=>a.total));
+  let rankHtml = '';
+  ranked.forEach(a=>{
+    const p = PLATFORMS[a.platform];
+    const pct = Math.max(4,(a.total/max)*100);
+    rankHtml += `<div class="rank-row">
+      <span class="rank-plat" style="background:${hexToRgba(p.hex,0.18)}; color:${p.hex};">${p.abbr}</span>
+      <div class="rank-name" title="${escapeHtml(a.name)} · ${p.label}">${escapeHtml(a.name)}</div>
+      <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${pct}%; background:${p.hex};"><span class="rank-val">${a.total>0?a.total:''}</span></div></div>
+    </div>`;
+  });
+  document.getElementById('ranking-body').innerHTML = rankHtml || '<p class="empty-state">Sem dados ainda.</p>';
+}
+
+// ---- EVOLUÇÃO (accordion com dois gráficos por conta) ----
+function chartSVG(accountId, metric){
+  const es = entriesFor(accountId);
+  if(es.length===0) return '<div class="chart-empty">Sem registros ainda.</div>';
+  const acc = state.accounts.find(a=>a.id===accountId); const p = PLATFORMS[acc.platform];
+  let cumulative = 0;
+  const realPoints = es.map(e=>{ if(metric==='followers') return {date:e.date, value:e.followers}; cumulative+=(e.posts||0); return {date:e.date, value:cumulative}; });
+  const baselineValue = metric==='followers' ? acc.initialFollowers : 0;
+  const points = [{date:'inicio', value: baselineValue, baseline:true}, ...realPoints];
+
+  const W = Math.max(500, points.length*55), H=170, padL=44, padR=14, padT=14, padB=26;
+  const vals = points.map(pt=>pt.value); const minV=Math.min(...vals), maxV=Math.max(...vals); const range=(maxV-minV)||1;
+  const xStep=(W-padL-padR)/(points.length-1);
+  const coords = points.map((pt,i)=>{ const x=padL+i*xStep; const y=padT+(H-padT-padB)*(1-(pt.value-minV)/range); return {x,y,...pt}; });
+  const pathD = coords.map((c,i)=>(i===0?'M':'L')+c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ');
+  const areaD = pathD + ` L${coords[coords.length-1].x.toFixed(1)},${H-padB} L${coords[0].x.toFixed(1)},${H-padB} Z`;
+  let dots='', labels='';
+  coords.forEach((c,i)=>{
+    dots += `<circle cx="${c.x}" cy="${c.y}" r="3" fill="${p.hex}" />`;
+    if(i===0||i===coords.length-1||i%Math.ceil(coords.length/7)===0){
+      const lbl = c.baseline ? 'início' : fmtDate(c.date);
+      labels += `<text x="${c.x}" y="${H-8}" fill="var(--muted)" font-size="9.5" font-family="var(--font-mono)" text-anchor="middle">${lbl}</text>`;
+    }
+  });
+  const totalDelta = points[points.length-1].value - points[0].value;
+  return `
+  <div style="overflow-x:auto;">
+  <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block;">
+    <text x="${padL}" y="12" fill="var(--muted)" font-size="9.5" font-family="var(--font-mono)">${fmtNum(maxV)}</text>
+    <text x="${padL}" y="${H-padB+4}" fill="var(--muted)" font-size="9.5" font-family="var(--font-mono)">${fmtNum(minV)}</text>
+    <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="var(--line)" />
+    <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--line)" />
+    <path d="${areaD}" fill="${hexToRgba(p.hex,0.14)}" stroke="none" />
+    <path d="${pathD}" fill="none" stroke="${p.hex}" stroke-width="2" />
+    ${dots}${labels}
+  </svg></div>
+  <div style="margin-top:8px; font-size:12px; color:var(--muted); display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <span>início: <span style="color:var(--text); font-family:var(--font-mono)">${fmtNum(points[0].value)}</span></span>
+    <span>agora: <span style="color:${p.hex}; font-family:var(--font-mono); font-weight:700;">${fmtNum(points[points.length-1].value)}</span></span>
+    ${deltaBadge(totalDelta)}
+  </div>`;
+}
+
+function renderEvolucao(){
+  let html = '';
+  Object.keys(PLATFORMS).forEach(pk=>{
+    const p = PLATFORMS[pk];
+    const accs = state.accounts.filter(a=>a.platform===pk);
+    if(!accs.length) return;
+    html += `<hr class="plat-divider"><div class="plat-head"><span class="pill" data-platform="${pk}">${p.label}</span></div>`;
+    accs.forEach(a=>{
+      html += `<div class="evo-item">
+        <div class="row evo-toggle" data-acc="${a.id}" style="cursor:pointer;">
+          <div class="row-left">
+            <div class="rname">${escapeHtml(a.name)}</div>
+            <div class="rsub">${fmtNum(latestFollowers(a.id))} seguidores · ${totalPosts(a.id)} posts</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+            ${deltaBadge(latestFollowers(a.id) - a.initialFollowers)}
+            <span class="evo-chevron" id="chev-${a.id}">▾</span>
+          </div>
+        </div>
+        <div class="evo-expand" id="expand-${a.id}" style="display:none;">
+          <div class="chart-label">Vídeos / posts</div>
+          <div class="chart-box" style="margin-bottom:12px;">${chartSVG(a.id,'posts')}</div>
+          <div class="chart-label">Seguidores / inscritos</div>
+          <div class="chart-box">${chartSVG(a.id,'followers')}</div>
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('evolucao-body').innerHTML = html || '<p class="empty-state">Nenhuma conta cadastrada ainda.</p>';
+
+  document.querySelectorAll('.evo-toggle').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = el.getAttribute('data-acc');
+      const exp = document.getElementById('expand-'+id);
+      const chev = document.getElementById('chev-'+id);
+      const isOpen = exp.style.display !== 'none';
+      exp.style.display = isOpen ? 'none' : 'block';
+      chev.textContent = isOpen ? '▾' : '▴';
+    });
+  });
+}
+
+// ---- HISTÓRICO ----
+function renderHistorico(){
+  const dates = allDatesSorted().reverse();
+  const body = document.getElementById('history-body');
+  if(dates.length===0){ body.innerHTML = '<p class="empty-state">Nada registrado ainda.</p>'; return; }
+  let html = '';
+  dates.forEach(date=>{
+    html += `<div class="hist-date-head">${fmtDate(date)}<span class="d">${date}</span></div>`;
+    state.entries.filter(e=>e.date===date).forEach(r=>{
+      const acc = state.accounts.find(a=>a.id===r.accountId); if(!acc) return;
+      const p = PLATFORMS[acc.platform];
+      const delta = followerDelta(acc.id, date);
+      html += `<div class="hist-row">
+        <span class="pill" data-platform="${acc.platform}" style="font-size:9px; padding:3px 8px;">${p.label}</span>
+        <span class="hname">${escapeHtml(acc.name)}</span>
+        <span class="hval">${r.posts||0} posts</span>
+        <span class="hval">${fmtNum(r.followers)}</span>
+        ${deltaBadge(delta)}
+        <button class="del-x" data-del-entry="${date}|${r.accountId}">✕</button>
+      </div>`;
+    });
+  });
+  body.innerHTML = html;
+  body.querySelectorAll('[data-del-entry]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const [date, accountId] = btn.getAttribute('data-del-entry').split('|');
+      state.entries = state.entries.filter(e=>!(e.date===date && e.accountId===accountId));
+      await saveData(true);
+      renderAll();
+    });
+  });
+}
+
+// ---- ROTEIROS ----
+let rotEditingId = null;
+
+function populateRotChannelSelect(){
+  const sel = document.getElementById('rot-channel');
+  let html = '';
+  Object.keys(PLATFORMS).forEach(pk=>{
+    const p = PLATFORMS[pk];
+    const accs = state.accounts.filter(a=>a.platform===pk);
+    if(!accs.length) return;
+    html += `<optgroup label="${p.label}">`;
+    accs.forEach(a=> html += `<option value="${a.id}">${escapeHtml(a.name)}</option>`);
+    html += '</optgroup>';
+  });
+  sel.innerHTML = html || '<option value="">Nenhuma conta cadastrada ainda</option>';
+}
+
+function openRotModal(existing){
+  populateRotChannelSelect();
+  rotEditingId = existing ? existing.id : null;
+  document.getElementById('rot-modal-title').textContent = existing ? 'Editar roteiro' : 'Novo roteiro';
+  document.getElementById('rot-title').value = existing ? existing.title : '';
+  document.getElementById('rot-script').value = existing ? (existing.script||'') : '';
+  document.getElementById('rot-caption').value = existing ? existing.caption : '';
+  document.getElementById('rot-links').value = existing ? (existing.videoLinks||[]).join('\n') : '';
+  document.getElementById('rot-date').value = existing ? existing.date : TODAY;
+  if(existing) document.getElementById('rot-channel').value = existing.channelId;
+  document.getElementById('rot-modal').classList.add('show');
+}
+document.getElementById('rot-add-btn').addEventListener('click', ()=> openRotModal(null));
+document.getElementById('rot-cancel').addEventListener('click', ()=> document.getElementById('rot-modal').classList.remove('show'));
+
+document.getElementById('rot-confirm').addEventListener('click', async ()=>{
+  const title = document.getElementById('rot-title').value.trim();
+  const script = document.getElementById('rot-script').value.trim();
+  const caption = document.getElementById('rot-caption').value.trim();
+  const links = document.getElementById('rot-links').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  const channelId = document.getElementById('rot-channel').value;
+  const date = document.getElementById('rot-date').value || TODAY;
+  if(!title){ alert('Dê um título pro roteiro.'); return; }
+  if(!channelId){ alert('Cadastre uma conta antes de criar um roteiro (aba Hoje).'); return; }
+
+  if(rotEditingId){
+    const r = state.roteiros.find(x=>x.id===rotEditingId);
+    Object.assign(r, { title, script, caption, videoLinks: links, channelId, date });
+  }else{
+    state.roteiros.push({
+      id: 'rot-' + Date.now(), title, script, caption, videoLinks: links, channelId, date,
+      status: 'rascunho', createdAt: new Date().toISOString()
+    });
+  }
+  await saveData(true);
+  document.getElementById('rot-modal').classList.remove('show');
+  showToast('Roteiro salvo');
+  renderAll();
+});
+
+function toggleRoteiroStatus(id){
+  const r = state.roteiros.find(x=>x.id===id);
+  if(!r) return;
+  r.status = r.status === 'publicado' ? 'rascunho' : 'publicado';
+  saveData(true);
+  showToast(r.status === 'publicado' ? 'Marcado como publicado' : 'Voltou pra rascunho');
+  renderAll();
+}
+function deleteRoteiro(id){
+  state.roteiros = state.roteiros.filter(x=>x.id!==id);
+  saveData(true);
+  renderAll();
+}
+
+function renderRoteiros(){
+  const body = document.getElementById('roteiros-body');
+  if(!state.roteiros || !state.roteiros.length){
+    body.innerHTML = '<p class="empty-state">Nenhum roteiro criado ainda.</p>';
+    return;
+  }
+  const dates = [...new Set(state.roteiros.map(r=>r.date))].sort().reverse();
+  let html = '';
+  dates.forEach(date=>{
+    html += `<div class="rot-day-head">${fmtDate(date)}<span class="d" style="color:var(--muted); font-weight:400; font-family:var(--font-mono); font-size:11px; margin-left:6px;">${date}</span></div>`;
+    const dayRoteiros = state.roteiros.filter(r=>r.date===date);
+    const channelIds = [...new Set(dayRoteiros.map(r=>r.channelId))];
+    channelIds.forEach(chId=>{
+      const acc = state.accounts.find(a=>a.id===chId);
+      const p = acc ? PLATFORMS[acc.platform] : null;
+      html += `<div class="rot-channel-label">${p ? `<span class="pill" data-platform="${acc.platform}" style="font-size:9px; padding:3px 8px;">${p.label}</span>` : ''} ${acc ? escapeHtml(acc.name) : 'Conta removida'}</div>`;
+      dayRoteiros.filter(r=>r.channelId===chId).forEach(r=>{
+        const linksHtml = (r.videoLinks||[]).map(l=>`<a href="${escapeHtml(l)}" target="_blank" rel="noopener">${escapeHtml(l)}</a>`).join('');
+        html += `<div class="rot-card">
+          <div class="rot-card-top">
+            <div>
+              <div class="rot-title">${escapeHtml(r.title)}</div>
+              ${r.script ? `<div class="rot-script-label">Roteiro</div><div class="rot-script">${escapeHtml(r.script)}</div>` : ''}
+              ${r.caption ? `<div class="rot-caption">${escapeHtml(r.caption)}</div>` : ''}
+            </div>
+            <span class="rot-status ${r.status}">${r.status === 'publicado' ? 'Publicado' : 'Rascunho'}</span>
+          </div>
+          ${linksHtml ? `<div class="rot-links">${linksHtml}</div>` : ''}
+          <div class="rot-card-actions">
+            <button class="btn secondary small" data-rot-edit="${r.id}">Editar</button>
+            <button class="btn small" data-rot-toggle="${r.id}">${r.status==='publicado' ? 'Voltar p/ rascunho' : 'Marcar publicado'}</button>
+            <button class="del-x" data-rot-del="${r.id}">✕</button>
+          </div>
+        </div>`;
+      });
+    });
+  });
+  body.innerHTML = html;
+  body.querySelectorAll('[data-rot-edit]').forEach(btn=> btn.addEventListener('click', ()=> openRotModal(state.roteiros.find(r=>r.id===btn.getAttribute('data-rot-edit')))));
+  body.querySelectorAll('[data-rot-toggle]').forEach(btn=> btn.addEventListener('click', ()=> toggleRoteiroStatus(btn.getAttribute('data-rot-toggle'))));
+  body.querySelectorAll('[data-rot-del]').forEach(btn=> btn.addEventListener('click', ()=> deleteRoteiro(btn.getAttribute('data-rot-del'))));
+}
+
+// ---- tabs ----
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-'+tab.getAttribute('data-tab')).classList.add('active');
+  });
+});
+
+function renderAll(){
+  renderTopStats();
+  renderHoje();
+  renderSeguidores();
+  renderGrade();
+  renderEvolucao();
+  renderHistorico();
+  renderRoteiros();
+}
+
+(async function init(){
+  await loadData();
+  renderAll();
+})();
+</script>
+</body>
+</html>
