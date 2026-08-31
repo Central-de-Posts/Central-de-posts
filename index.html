@@ -97,6 +97,13 @@
   .row .rsub{ color:var(--muted); font-size:12px; margin-top:2px; font-family:var(--font-mono); }
   .row-left{ min-width:0; flex:1; }
   .row-left .rname{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rname-line{ display:flex; align-items:center; gap:6px; min-width:0; }
+  .rname-line .rname{ min-width:0; }
+  a.rname.acc-name-link{ color:var(--text); text-decoration:none; }
+  a.rname.acc-name-link:hover{ text-decoration:underline; }
+  .acc-link-btn{ background:none; border:none; color:var(--muted-2); cursor:pointer; font-size:12px; padding:2px; flex-shrink:0; line-height:1; }
+  .acc-link-btn:hover{ color:var(--text); }
+  .acc-link-btn.set{ color:var(--good); }
   .del-x{ background:none; border:none; color:var(--muted-2); cursor:pointer; font-size:13px; padding:4px 6px; }
   .del-x:hover{ color: var(--bad); }
 
@@ -208,6 +215,7 @@
   .modal h3{ margin:0 0 14px; font-family:var(--font-display); font-size:16px; }
   .modal label{ font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
   .modal input, .modal select, .modal textarea{ width:100%; margin: 5px 0 12px; }
+  .field-hint{ color:var(--muted-2); font-size:11.5px; margin: -9px 0 12px; line-height:1.4; }
   .modal textarea{
     background: var(--row); border:1px solid var(--line); color:var(--text); border-radius:9px;
     padding:8px 10px; font-family: var(--font-body); font-size:13.5px; resize:vertical; min-height:64px;
@@ -258,7 +266,7 @@
   </div>
 
   <div class="tabs">
-    <button class="tab active" data-tab="hoje">Hoje</button>
+    <button class="tab active" data-tab="hoje">Posts</button>
     <button class="tab" data-tab="seguidores">Seguidores</button>
     <button class="tab" data-tab="grade">Grade</button>
     <button class="tab" data-tab="evolucao">Evolução</button>
@@ -338,10 +346,13 @@
     <h3 id="rot-modal-title">Novo roteiro</h3>
     <label>Título</label>
     <input type="text" id="rot-title" placeholder="ex: Bastidores do treino">
+    <div class="field-hint">Nome interno do roteiro — não aparece na postagem</div>
     <label>Roteiro</label>
     <textarea id="rot-script" class="rot-script-input" placeholder="Escreva aqui o roteiro/texto do vídeo (fala, cenas, ganchos...)"></textarea>
+    <div class="field-hint">A fala e as cenas do vídeo</div>
     <label>Legenda</label>
     <textarea id="rot-caption" placeholder="Legenda que vai junto na publicação"></textarea>
+    <div class="field-hint">O texto que vai junto com a publicação</div>
     <label>Links dos vídeos (edição)</label>
     <textarea id="rot-links" placeholder="Um link por linha"></textarea>
     <label>Canal</label>
@@ -548,9 +559,16 @@ function renderHoje(){
     accs.forEach(a=>{
       const e = getEntry(date, a.id);
       const count = e ? (e.posts||0) : 0;
+      const nameHtml = a.url
+        ? `<a class="rname acc-name-link" href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.name)}</a>`
+        : `<span class="rname">${escapeHtml(a.name)}</span>`;
+      const linkBtn = `<button class="acc-link-btn ${a.url?'set':''}" data-link-acc="${a.id}" title="${a.url?'Editar link da conta':'Adicionar link da conta'}">🔗</button>`;
+      const ytBtn = a.platform==='youtube'
+        ? `<button class="acc-link-btn ${a.youtubeChannelId?'set':''}" data-yt-acc="${a.id}" title="${a.youtubeChannelId?'Abrir Analytics do canal':'Configurar ID do canal p/ Analytics'}">📊</button>`
+        : '';
       html += `<div class="row">
         <div class="row-left">
-          <div class="rname">${escapeHtml(a.name)}</div>
+          <div class="rname-line">${nameHtml}${linkBtn}${ytBtn}</div>
           <div class="rsub">${fmtNum(latestFollowers(a.id))} seguidores</div>
         </div>
         <div class="stepper">
@@ -578,6 +596,35 @@ function renderHoje(){
   });
   document.querySelectorAll('[data-add-platform]').forEach(el=>{
     el.addEventListener('click', ()=> openAddModal(el.getAttribute('data-add-platform')));
+  });
+  document.querySelectorAll('[data-link-acc]').forEach(btn=>{
+    btn.addEventListener('click', async (ev)=>{
+      ev.stopPropagation();
+      const accId = btn.getAttribute('data-link-acc');
+      const acc = state.accounts.find(x=>x.id===accId);
+      const url = prompt('Link da página da conta (Instagram/TikTok/YouTube):', acc.url || '');
+      if(url === null) return;
+      acc.url = url.trim();
+      await saveData(true);
+      renderAll();
+    });
+  });
+  document.querySelectorAll('[data-yt-acc]').forEach(btn=>{
+    btn.addEventListener('click', async (ev)=>{
+      ev.stopPropagation();
+      const accId = btn.getAttribute('data-yt-acc');
+      const acc = state.accounts.find(x=>x.id===accId);
+      if(acc.youtubeChannelId){
+        window.open('https://studio.youtube.com/channel/'+acc.youtubeChannelId+'/analytics', '_blank');
+        return;
+      }
+      const id = prompt('ID do canal do YouTube (em Configurações > Canal > Info básicas):', '');
+      if(!id) return;
+      acc.youtubeChannelId = id.trim();
+      await saveData(true);
+      showToast('Canal configurado — clique de novo pra abrir o Analytics');
+      renderAll();
+    });
   });
 }
 
@@ -859,7 +906,15 @@ document.getElementById('rot-confirm').addEventListener('click', async ()=>{
 
   if(rotEditingId){
     const r = state.roteiros.find(x=>x.id===rotEditingId);
+    const wasPublished = r.status === 'publicado';
+    const oldChannelId = r.channelId, oldDate = r.date;
     Object.assign(r, { title, script, caption, videoLinks: links, channelId, date });
+    if(wasPublished && (oldChannelId !== channelId || oldDate !== date)){
+      const oldEntry = getEntry(oldDate, oldChannelId);
+      if(oldEntry) oldEntry.posts = Math.max(0, (oldEntry.posts||0) - 1);
+      const newEntry = ensureEntry(date, channelId);
+      newEntry.posts = (newEntry.posts||0) + 1;
+    }
   }else{
     state.roteiros.push({
       id: 'rot-' + Date.now(), title, script, caption, videoLinks: links, channelId, date,
@@ -875,12 +930,22 @@ document.getElementById('rot-confirm').addEventListener('click', async ()=>{
 function toggleRoteiroStatus(id){
   const r = state.roteiros.find(x=>x.id===id);
   if(!r) return;
-  r.status = r.status === 'publicado' ? 'rascunho' : 'publicado';
+  const willPublish = r.status !== 'publicado';
+  r.status = willPublish ? 'publicado' : 'rascunho';
+  if(r.channelId && r.date){
+    const e = ensureEntry(r.date, r.channelId);
+    e.posts = Math.max(0, (e.posts||0) + (willPublish ? 1 : -1));
+  }
   saveData(true);
   showToast(r.status === 'publicado' ? 'Marcado como publicado' : 'Voltou pra rascunho');
   renderAll();
 }
 function deleteRoteiro(id){
+  const r = state.roteiros.find(x=>x.id===id);
+  if(r && r.status === 'publicado' && r.channelId && r.date){
+    const e = getEntry(r.date, r.channelId);
+    if(e) e.posts = Math.max(0, (e.posts||0) - 1);
+  }
   state.roteiros = state.roteiros.filter(x=>x.id!==id);
   saveData(true);
   renderAll();
