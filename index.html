@@ -97,13 +97,6 @@
   .row .rsub{ color:var(--muted); font-size:12px; margin-top:2px; font-family:var(--font-mono); }
   .row-left{ min-width:0; flex:1; }
   .row-left .rname{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .rname-line{ display:flex; align-items:center; gap:6px; min-width:0; }
-  .rname-line .rname{ min-width:0; }
-  a.rname.acc-name-link{ color:var(--text); text-decoration:none; }
-  a.rname.acc-name-link:hover{ text-decoration:underline; }
-  .acc-link-btn{ background:none; border:none; color:var(--muted-2); cursor:pointer; font-size:12px; padding:2px; flex-shrink:0; line-height:1; }
-  .acc-link-btn:hover{ color:var(--text); }
-  .acc-link-btn.set{ color:var(--good); }
   .del-x{ background:none; border:none; color:var(--muted-2); cursor:pointer; font-size:13px; padding:4px 6px; }
   .del-x:hover{ color: var(--bad); }
 
@@ -215,12 +208,18 @@
   .modal h3{ margin:0 0 14px; font-family:var(--font-display); font-size:16px; }
   .modal label{ font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
   .modal input, .modal select, .modal textarea{ width:100%; margin: 5px 0 12px; }
-  .field-hint{ color:var(--muted-2); font-size:11.5px; margin: -9px 0 12px; line-height:1.4; }
   .modal textarea{
     background: var(--row); border:1px solid var(--line); color:var(--text); border-radius:9px;
     padding:8px 10px; font-family: var(--font-body); font-size:13.5px; resize:vertical; min-height:64px;
   }
   .modal-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:6px; }
+  .field-hint{ font-size:11px; color:var(--muted-2); margin:-7px 0 10px; line-height:1.35; }
+
+  .rname-wrap{ display:flex; align-items:center; gap:6px; min-width:0; }
+  a.rname{ color:var(--text); text-decoration:none; }
+  a.rname:hover{ text-decoration:underline; }
+  .icon-btn{ background:none; border:none; color:var(--muted-2); cursor:pointer; font-size:12px; padding:2px 3px; flex-shrink:0; line-height:1; }
+  .icon-btn:hover{ color:var(--text); }
 
   /* roteiros */
   .rot-add-btn{
@@ -234,9 +233,6 @@
   .rot-card-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
   .rot-title{ font-weight:600; font-size:14.5px; }
   .rot-caption{ color:var(--muted); font-size:12.5px; margin-top:4px; white-space:pre-wrap; }
-  .rot-script-input{ min-height:120px; }
-  .rot-script{ color:var(--text); font-size:12.5px; margin-top:8px; white-space:pre-wrap; background:rgba(255,255,255,0.04); border-radius:10px; padding:10px 12px; line-height:1.5; }
-  .rot-script-label{ font-family:var(--font-mono); font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-top:8px; }
   .rot-links{ margin-top:8px; display:flex; flex-direction:column; gap:3px; }
   .rot-links a{ color:#8FB8FF; font-size:11.5px; font-family:var(--font-mono); text-decoration:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
   .rot-links a:hover{ text-decoration:underline; }
@@ -346,15 +342,13 @@
     <h3 id="rot-modal-title">Novo roteiro</h3>
     <label>Título</label>
     <input type="text" id="rot-title" placeholder="ex: Bastidores do treino">
-    <div class="field-hint">Nome interno do roteiro — não aparece na postagem</div>
-    <label>Roteiro</label>
-    <textarea id="rot-script" class="rot-script-input" placeholder="Escreva aqui o roteiro/texto do vídeo (fala, cenas, ganchos...)"></textarea>
-    <div class="field-hint">A fala e as cenas do vídeo</div>
+    <div class="field-hint">Nome interno pra você identificar o roteiro — não aparece na publicação.</div>
     <label>Legenda</label>
     <textarea id="rot-caption" placeholder="Legenda que vai junto na publicação"></textarea>
-    <div class="field-hint">O texto que vai junto com a publicação</div>
+    <div class="field-hint">O texto que vai junto com o post (legenda/descrição na rede social).</div>
     <label>Links dos vídeos (edição)</label>
     <textarea id="rot-links" placeholder="Um link por linha"></textarea>
+    <div class="field-hint">Links de apoio pra quem for editar o vídeo (ex: bruto, referências, ferramentas). Não vão pro post.</div>
     <label>Canal</label>
     <select id="rot-channel"></select>
     <label>Data de publicação</label>
@@ -527,6 +521,17 @@ function last7Sum(){
   return state.entries.filter(e=> e.date>=cutoffStr && e.date<=TODAY).reduce((s,e)=> s+(e.posts||0), 0);
 }
 
+function incrementPostCount(date, accountId){
+  if(!date || !accountId) return;
+  const e = ensureEntry(date, accountId);
+  e.posts = (e.posts||0) + 1;
+}
+function decrementPostCount(date, accountId){
+  if(!date || !accountId) return;
+  const e = getEntry(date, accountId);
+  if(e) e.posts = Math.max(0, (e.posts||0) - 1);
+}
+
 function currentWorkDate(){
   const wd = document.getElementById('work-date');
   return (wd && wd.value) ? wd.value : TODAY;
@@ -559,16 +564,13 @@ function renderHoje(){
     accs.forEach(a=>{
       const e = getEntry(date, a.id);
       const count = e ? (e.posts||0) : 0;
-      const nameHtml = a.url
-        ? `<a class="rname acc-name-link" href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.name)}</a>`
-        : `<span class="rname">${escapeHtml(a.name)}</span>`;
-      const linkBtn = `<button class="acc-link-btn ${a.url?'set':''}" data-link-acc="${a.id}" title="${a.url?'Editar link da conta':'Adicionar link da conta'}">🔗</button>`;
-      const ytBtn = a.platform==='youtube'
-        ? `<button class="acc-link-btn ${a.youtubeChannelId?'set':''}" data-yt-acc="${a.id}" title="${a.youtubeChannelId?'Abrir Analytics do canal':'Configurar ID do canal p/ Analytics'}">📊</button>`
-        : '';
       html += `<div class="row">
         <div class="row-left">
-          <div class="rname-line">${nameHtml}${linkBtn}${ytBtn}</div>
+          <div class="rname-wrap">
+            ${a.link ? `<a href="${escapeHtml(a.link)}" target="_blank" rel="noopener" class="rname">${escapeHtml(a.name)}</a>` : `<span class="rname">${escapeHtml(a.name)}</span>`}
+            <button class="icon-btn" data-link-acc="${a.id}" title="Colar link da conta">🔗</button>
+            ${a.platform==='youtube' ? `<button class="icon-btn" data-yt-acc="${a.id}" title="Abrir YouTube Analytics">📊</button>` : ''}
+          </div>
           <div class="rsub">${fmtNum(latestFollowers(a.id))} seguidores</div>
         </div>
         <div class="stepper">
@@ -601,10 +603,11 @@ function renderHoje(){
     btn.addEventListener('click', async (ev)=>{
       ev.stopPropagation();
       const accId = btn.getAttribute('data-link-acc');
-      const acc = state.accounts.find(x=>x.id===accId);
-      const url = prompt('Link da página da conta (Instagram/TikTok/YouTube):', acc.url || '');
-      if(url === null) return;
-      acc.url = url.trim();
+      const acc = state.accounts.find(a=>a.id===accId);
+      if(!acc) return;
+      const val = prompt('Cole o link da página/perfil dessa conta:', acc.link || '');
+      if(val===null) return;
+      acc.link = val.trim();
       await saveData(true);
       renderAll();
     });
@@ -613,17 +616,15 @@ function renderHoje(){
     btn.addEventListener('click', async (ev)=>{
       ev.stopPropagation();
       const accId = btn.getAttribute('data-yt-acc');
-      const acc = state.accounts.find(x=>x.id===accId);
-      if(acc.youtubeChannelId){
-        window.open('https://studio.youtube.com/channel/'+acc.youtubeChannelId+'/analytics', '_blank');
-        return;
+      const acc = state.accounts.find(a=>a.id===accId);
+      if(!acc) return;
+      if(!acc.ytChannelId){
+        const val = prompt('Cole o ID do canal do YouTube (ex: UCxxxxxxxxxxxxxxxx):', '');
+        if(!val) return;
+        acc.ytChannelId = val.trim();
+        await saveData(true);
       }
-      const id = prompt('ID do canal do YouTube (em Configurações > Canal > Info básicas):', '');
-      if(!id) return;
-      acc.youtubeChannelId = id.trim();
-      await saveData(true);
-      showToast('Canal configurado — clique de novo pra abrir o Analytics');
-      renderAll();
+      window.open('https://studio.youtube.com/channel/' + encodeURIComponent(acc.ytChannelId) + '/analytics/tab-overview/period-default', '_blank');
     });
   });
 }
@@ -884,7 +885,6 @@ function openRotModal(existing){
   rotEditingId = existing ? existing.id : null;
   document.getElementById('rot-modal-title').textContent = existing ? 'Editar roteiro' : 'Novo roteiro';
   document.getElementById('rot-title').value = existing ? existing.title : '';
-  document.getElementById('rot-script').value = existing ? (existing.script||'') : '';
   document.getElementById('rot-caption').value = existing ? existing.caption : '';
   document.getElementById('rot-links').value = existing ? (existing.videoLinks||[]).join('\n') : '';
   document.getElementById('rot-date').value = existing ? existing.date : TODAY;
@@ -896,7 +896,6 @@ document.getElementById('rot-cancel').addEventListener('click', ()=> document.ge
 
 document.getElementById('rot-confirm').addEventListener('click', async ()=>{
   const title = document.getElementById('rot-title').value.trim();
-  const script = document.getElementById('rot-script').value.trim();
   const caption = document.getElementById('rot-caption').value.trim();
   const links = document.getElementById('rot-links').value.split('\n').map(l=>l.trim()).filter(Boolean);
   const channelId = document.getElementById('rot-channel').value;
@@ -906,18 +905,16 @@ document.getElementById('rot-confirm').addEventListener('click', async ()=>{
 
   if(rotEditingId){
     const r = state.roteiros.find(x=>x.id===rotEditingId);
-    const wasPublished = r.status === 'publicado';
-    const oldChannelId = r.channelId, oldDate = r.date;
-    Object.assign(r, { title, script, caption, videoLinks: links, channelId, date });
-    if(wasPublished && (oldChannelId !== channelId || oldDate !== date)){
-      const oldEntry = getEntry(oldDate, oldChannelId);
-      if(oldEntry) oldEntry.posts = Math.max(0, (oldEntry.posts||0) - 1);
-      const newEntry = ensureEntry(date, channelId);
-      newEntry.posts = (newEntry.posts||0) + 1;
+    if(r.postCounted && (r.countedDate !== date || r.countedChannelId !== channelId)){
+      decrementPostCount(r.countedDate, r.countedChannelId);
+      incrementPostCount(date, channelId);
+      r.countedDate = date;
+      r.countedChannelId = channelId;
     }
+    Object.assign(r, { title, caption, videoLinks: links, channelId, date });
   }else{
     state.roteiros.push({
-      id: 'rot-' + Date.now(), title, script, caption, videoLinks: links, channelId, date,
+      id: 'rot-' + Date.now(), title, caption, videoLinks: links, channelId, date,
       status: 'rascunho', createdAt: new Date().toISOString()
     });
   }
@@ -930,11 +927,22 @@ document.getElementById('rot-confirm').addEventListener('click', async ()=>{
 function toggleRoteiroStatus(id){
   const r = state.roteiros.find(x=>x.id===id);
   if(!r) return;
-  const willPublish = r.status !== 'publicado';
-  r.status = willPublish ? 'publicado' : 'rascunho';
-  if(r.channelId && r.date){
-    const e = ensureEntry(r.date, r.channelId);
-    e.posts = Math.max(0, (e.posts||0) + (willPublish ? 1 : -1));
+  if(r.status === 'publicado'){
+    if(r.postCounted){
+      decrementPostCount(r.countedDate, r.countedChannelId);
+      r.postCounted = false;
+      r.countedDate = null;
+      r.countedChannelId = null;
+    }
+    r.status = 'rascunho';
+  }else{
+    r.status = 'publicado';
+    if(!r.postCounted){
+      incrementPostCount(r.date, r.channelId);
+      r.postCounted = true;
+      r.countedDate = r.date;
+      r.countedChannelId = r.channelId;
+    }
   }
   saveData(true);
   showToast(r.status === 'publicado' ? 'Marcado como publicado' : 'Voltou pra rascunho');
@@ -942,9 +950,8 @@ function toggleRoteiroStatus(id){
 }
 function deleteRoteiro(id){
   const r = state.roteiros.find(x=>x.id===id);
-  if(r && r.status === 'publicado' && r.channelId && r.date){
-    const e = getEntry(r.date, r.channelId);
-    if(e) e.posts = Math.max(0, (e.posts||0) - 1);
+  if(r && r.postCounted){
+    decrementPostCount(r.countedDate, r.countedChannelId);
   }
   state.roteiros = state.roteiros.filter(x=>x.id!==id);
   saveData(true);
@@ -973,7 +980,6 @@ function renderRoteiros(){
           <div class="rot-card-top">
             <div>
               <div class="rot-title">${escapeHtml(r.title)}</div>
-              ${r.script ? `<div class="rot-script-label">Roteiro</div><div class="rot-script">${escapeHtml(r.script)}</div>` : ''}
               ${r.caption ? `<div class="rot-caption">${escapeHtml(r.caption)}</div>` : ''}
             </div>
             <span class="rot-status ${r.status}">${r.status === 'publicado' ? 'Publicado' : 'Rascunho'}</span>
