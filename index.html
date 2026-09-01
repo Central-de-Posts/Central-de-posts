@@ -175,14 +175,20 @@
   /* history */
   .hist-date-head{ font-family: var(--font-display); font-weight:600; font-size:13.5px; color:var(--text); margin: 20px 0 8px; }
   .hist-date-head .d{ color:var(--muted); font-weight:400; font-family:var(--font-mono); font-size:11px; margin-left:6px;}
-  .hist-row{ display:flex; align-items:center; gap:10px; background:var(--row); border-radius:12px; padding:10px 14px; margin-bottom:6px; font-size:12.5px; }
-  .hist-row .hname{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;}
-  .hist-row .hval{ font-family:var(--font-mono); color:var(--muted); font-size:12px; width:70px; text-align:right; }
+  .hist-row{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; background:var(--row); border-radius:12px; padding:10px 14px; margin-bottom:6px; font-size:12.5px; }
+  .hist-row .hname-row{ display:flex; align-items:center; gap:8px; width:100%; }
+  .hist-row .hname{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; font-size:13.5px; color:var(--text); }
+  .hist-row .hcontrols{ display:flex; align-items:center; gap:10px; margin-left:auto; padding-left:26px; }
+  .hist-row .hval{ font-family:var(--font-mono); color:var(--muted); font-size:12px; text-align:right; }
   .hval-posts{ display:flex; align-items:center; justify-content:flex-end; gap:4px; width:78px; flex-shrink:0; }
   .hval-posts input{ width:34px; background:var(--row); border:1px solid var(--line); border-radius:6px; color:var(--text); font-family:var(--font-mono); font-size:12px; text-align:center; padding:2px 0; -moz-appearance:textfield; }
   .hval-posts input::-webkit-outer-spin-button, .hval-posts input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
   .hval-posts input:focus{ outline:none; border-color: var(--good); }
   .hval-posts span{ font-family:var(--font-mono); color:var(--muted); font-size:12px; }
+  .chart-dot-hit{ cursor:pointer; }
+  .chart-tooltip{ position:fixed; z-index:9999; pointer-events:none; background:#12141c; border:1px solid var(--line); border-radius:8px; padding:6px 10px; box-shadow:0 8px 20px rgba(0,0,0,0.45); display:none; white-space:nowrap; }
+  .chart-tooltip .tt-date{ display:block; color:var(--muted); font-size:9.5px; font-family:var(--font-mono); margin-bottom:2px; }
+  .chart-tooltip .tt-val{ font-weight:700; font-size:13px; font-family:var(--font-mono); }
 
   .empty-state{ color:var(--muted); font-size:13px; padding: 20px 0; }
   .btn{
@@ -313,7 +319,7 @@
 
   <!-- EVOLUÇÃO -->
   <div class="panel" id="panel-evolucao">
-    <p class="section-sub">Clique numa conta pra ver a evolução de posts e de seguidores.</p>
+    <p class="section-sub">Clique numa conta pra ver a evolução de posts e de seguidores. O número ao lado de cada conta (ex: <span style="color:var(--good); font-weight:600;">▲ +189</span>) é o total acumulado <strong>desde o primeiro registro</strong> dessa conta — não é de 7 dias nem de 1 mês, é o histórico completo, e vai só crescendo (ou caindo) conforme os seguidores mudam, sem nunca reiniciar sozinho.</p>
     <div id="evolucao-body"></div>
   </div>
 
@@ -331,6 +337,8 @@
   </div>
 
 </div>
+
+<div class="chart-tooltip" id="chart-tooltip"></div>
 
 <div class="modal-bg" id="add-modal">
   <div class="modal">
@@ -788,11 +796,13 @@ function chartSVG(accountId, metric){
   const pathD = coords.map((c,i)=>(i===0?'M':'L')+c.x.toFixed(1)+','+c.y.toFixed(1)).join(' ');
   const areaD = pathD + ` L${coords[coords.length-1].x.toFixed(1)},${H-padB} L${coords[0].x.toFixed(1)},${H-padB} Z`;
   let dots='', labels='';
+  const unit = metric==='followers' ? 'seguidores' : 'posts';
   coords.forEach((c,i)=>{
-    dots += `<circle cx="${c.x}" cy="${c.y}" r="3" fill="${p.hex}" />`;
+    const lblFull = c.baseline ? 'início' : fmtDate(c.date);
+    dots += `<circle cx="${c.x}" cy="${c.y}" r="3" fill="${p.hex}" />
+      <circle cx="${c.x}" cy="${c.y}" r="12" fill="transparent" class="chart-dot-hit" data-date="${escapeHtml(lblFull)}" data-value="${fmtNum(c.value)} ${unit}" data-color="${p.hex}" />`;
     if(i===0||i===coords.length-1||i%Math.ceil(coords.length/7)===0){
-      const lbl = c.baseline ? 'início' : fmtDate(c.date);
-      labels += `<text x="${c.x}" y="${H-8}" fill="var(--muted)" font-size="9.5" font-family="var(--font-mono)" text-anchor="middle">${lbl}</text>`;
+      labels += `<text x="${c.x}" y="${H-8}" fill="var(--muted)" font-size="9.5" font-family="var(--font-mono)" text-anchor="middle">${lblFull}</text>`;
     }
   });
   const totalDelta = points[points.length-1].value - points[0].value;
@@ -828,8 +838,11 @@ function renderEvolucao(){
             <div class="rname">${escapeHtml(a.name)}</div>
             <div class="rsub">${fmtNum(latestFollowers(a.id))} seguidores · ${totalPosts(a.id)} posts</div>
           </div>
-          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-            ${deltaBadge(latestFollowers(a.id) - a.initialFollowers)}
+          <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
+              ${deltaBadge(latestFollowers(a.id) - a.initialFollowers)}
+              <span style="font-size:9px; color:var(--muted-2); font-family:var(--font-mono);">desde o início</span>
+            </div>
             <span class="evo-chevron" id="chev-${a.id}">▾</span>
           </div>
         </div>
@@ -869,12 +882,16 @@ function renderHistorico(){
       const p = PLATFORMS[acc.platform];
       const delta = followerDelta(acc.id, date);
       html += `<div class="hist-row">
-        <span class="pill" data-platform="${acc.platform}" style="font-size:9px; padding:3px 8px;">${p.label}</span>
-        <span class="hname">${escapeHtml(acc.name)}</span>
-        <span class="hval-posts"><input type="number" min="0" inputmode="numeric" value="${r.posts||0}" data-edit-posts="${date}|${r.accountId}"><span>posts</span></span>
-        <span class="hval">${fmtNum(r.followers)}</span>
-        ${deltaBadge(delta)}
-        <button class="del-x" data-del-entry="${date}|${r.accountId}">✕</button>
+        <div class="hname-row">
+          <span class="pill" data-platform="${acc.platform}" style="font-size:9px; padding:3px 8px; flex-shrink:0;">${p.label}</span>
+          <span class="hname">${escapeHtml(acc.name)}</span>
+        </div>
+        <div class="hcontrols">
+          <span class="hval-posts"><input type="number" min="0" inputmode="numeric" value="${r.posts||0}" data-edit-posts="${date}|${r.accountId}"><span>posts</span></span>
+          <span class="hval">${fmtNum(r.followers)}</span>
+          ${deltaBadge(delta)}
+          <button class="del-x" data-del-entry="${date}|${r.accountId}">✕</button>
+        </div>
       </div>`;
     });
   });
@@ -1096,6 +1113,51 @@ function renderAll(){
   renderHistorico();
   renderRoteiros();
 }
+
+// ---- TOOLTIPS DOS GRÁFICOS (funciona em todos os gráficos de Evolução) ----
+const chartTooltipEl = document.getElementById('chart-tooltip');
+function positionChartTooltip(clientX, clientY){
+  const pad = 14;
+  let x = clientX + pad, y = clientY + pad;
+  const rectW = chartTooltipEl.offsetWidth || 90;
+  const rectH = chartTooltipEl.offsetHeight || 34;
+  if(x + rectW > window.innerWidth - 8) x = clientX - rectW - pad;
+  if(y + rectH > window.innerHeight - 8) y = clientY - rectH - pad;
+  chartTooltipEl.style.left = x + 'px';
+  chartTooltipEl.style.top = y + 'px';
+}
+function showChartTooltip(dot, clientX, clientY){
+  const date = dot.getAttribute('data-date');
+  const val = dot.getAttribute('data-value');
+  const color = dot.getAttribute('data-color');
+  chartTooltipEl.innerHTML = `<span class="tt-date">${date}</span><span class="tt-val" style="color:${color}">${val}</span>`;
+  chartTooltipEl.style.display = 'block';
+  positionChartTooltip(clientX, clientY);
+}
+function hideChartTooltip(){ chartTooltipEl.style.display = 'none'; }
+
+// Hover com mouse (desktop)
+document.addEventListener('pointerover', (e)=>{
+  if(e.pointerType && e.pointerType !== 'mouse') return;
+  const dot = e.target.closest('.chart-dot-hit');
+  if(dot) showChartTooltip(dot, e.clientX, e.clientY);
+});
+document.addEventListener('pointermove', (e)=>{
+  if(e.pointerType && e.pointerType !== 'mouse') return;
+  const dot = e.target.closest('.chart-dot-hit');
+  if(dot) positionChartTooltip(e.clientX, e.clientY);
+});
+document.addEventListener('pointerout', (e)=>{
+  if(e.pointerType && e.pointerType !== 'mouse') return;
+  const dot = e.target.closest('.chart-dot-hit');
+  if(dot) hideChartTooltip();
+});
+// Toque no celular: tocar no ponto mostra, tocar em qualquer outro lugar esconde
+document.addEventListener('click', (e)=>{
+  const dot = e.target.closest('.chart-dot-hit');
+  if(dot){ showChartTooltip(dot, e.clientX, e.clientY); e.stopPropagation(); }
+  else hideChartTooltip();
+});
 
 (async function init(){
   await loadData();
