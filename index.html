@@ -178,6 +178,11 @@
   .hist-row{ display:flex; align-items:center; gap:10px; background:var(--row); border-radius:12px; padding:10px 14px; margin-bottom:6px; font-size:12.5px; }
   .hist-row .hname{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500;}
   .hist-row .hval{ font-family:var(--font-mono); color:var(--muted); font-size:12px; width:70px; text-align:right; }
+  .hval-posts{ display:flex; align-items:center; justify-content:flex-end; gap:4px; width:78px; flex-shrink:0; }
+  .hval-posts input{ width:34px; background:var(--row); border:1px solid var(--line); border-radius:6px; color:var(--text); font-family:var(--font-mono); font-size:12px; text-align:center; padding:2px 0; -moz-appearance:textfield; }
+  .hval-posts input::-webkit-outer-spin-button, .hval-posts input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .hval-posts input:focus{ outline:none; border-color: var(--good); }
+  .hval-posts span{ font-family:var(--font-mono); color:var(--muted); font-size:12px; }
 
   .empty-state{ color:var(--muted); font-size:13px; padding: 20px 0; }
   .btn{
@@ -859,7 +864,7 @@ function renderHistorico(){
       html += `<div class="hist-row">
         <span class="pill" data-platform="${acc.platform}" style="font-size:9px; padding:3px 8px;">${p.label}</span>
         <span class="hname">${escapeHtml(acc.name)}</span>
-        <span class="hval">${r.posts||0} posts</span>
+        <span class="hval-posts"><input type="number" min="0" inputmode="numeric" value="${r.posts||0}" data-edit-posts="${date}|${r.accountId}"><span>posts</span></span>
         <span class="hval">${fmtNum(r.followers)}</span>
         ${deltaBadge(delta)}
         <button class="del-x" data-del-entry="${date}|${r.accountId}">✕</button>
@@ -867,6 +872,20 @@ function renderHistorico(){
     });
   });
   body.innerHTML = html;
+  body.querySelectorAll('[data-edit-posts]').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      const [date, accountId] = inp.getAttribute('data-edit-posts').split('|');
+      const e = getEntry(date, accountId);
+      if(!e) return;
+      let v = parseInt(inp.value, 10);
+      if(isNaN(v) || v<0) v = 0;
+      e.posts = v;
+      inp.value = v;
+      await saveData(false);
+      renderAll();
+    });
+    inp.addEventListener('click', (ev)=> ev.stopPropagation());
+  });
   body.querySelectorAll('[data-del-entry]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const [date, accountId] = btn.getAttribute('data-del-entry').split('|');
