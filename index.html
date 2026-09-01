@@ -79,6 +79,9 @@
     transition: background .15s, color .15s;
   }
   .tab.active{ background: var(--row-hover); color: var(--text); }
+  .tab.dragging{ opacity:0.55; background: var(--row-hover); transform:scale(1.04); box-shadow:0 6px 16px rgba(0,0,0,0.4); z-index:5; }
+  .tab{ touch-action: pan-x; user-select:none; -webkit-user-select:none; }
+  .tabs-hint{ text-align:center; color:var(--muted-2); font-size:10.5px; margin: -12px 0 16px; }
 
   .panel{ display:none; }
   .panel.active{ display:block; animation: fadein .16s ease; }
@@ -270,6 +273,17 @@
   .rot-status.publicado{ color: var(--good); background: rgba(53,211,153,0.14); }
   .rot-card-actions{ display:flex; gap:8px; margin-top:12px; }
   .rot-card-actions .btn{ padding:7px 12px; font-size:12px; }
+
+  /* roteiros: seções colapsáveis rascunho/publicado */
+  .rot-section{ margin-bottom:14px; }
+  .rot-section-head{
+    width:100%; display:flex; align-items:center; gap:9px; background: var(--surface); border:1px solid var(--line);
+    border-radius:12px; padding:12px 14px; cursor:pointer; font-family:var(--font-body); text-align:left;
+  }
+  .rot-section-chevron{ color:var(--muted); font-size:12px; width:12px; flex-shrink:0; }
+  .rot-section-title{ font-family:var(--font-display); font-weight:700; font-size:14.5px; color:var(--text); flex:1; }
+  .rot-section-count{ font-family:var(--font-mono); font-size:11.5px; color:var(--muted); background: var(--row); padding:2px 9px; border-radius:20px; flex-shrink:0; }
+  .rot-section-body{ padding-top:12px; }
 </style>
 </head>
 <body>
@@ -298,14 +312,8 @@
     <div class="stat-box"><div class="num" id="stat-total">0</div><div class="lbl">Total</div></div>
   </div>
 
-  <div class="tabs">
-    <button class="tab active" data-tab="hoje">Posts</button>
-    <button class="tab" data-tab="seguidores">Seguidores</button>
-    <button class="tab" data-tab="grade">Grade</button>
-    <button class="tab" data-tab="evolucao">Evolução</button>
-    <button class="tab" data-tab="historico">Histórico</button>
-    <button class="tab" data-tab="roteiros">Roteiros</button>
-  </div>
+  <div class="tabs" id="tabs-container"></div>
+  <div class="tabs-hint" id="tabs-hint">segure e arraste uma aba pra reordenar</div>
 
   <!-- HOJE -->
   <div class="panel active" id="panel-hoje">
@@ -1036,17 +1044,16 @@ function deleteRoteiro(id){
   renderAll();
 }
 
-function renderRoteiros(){
-  const body = document.getElementById('roteiros-body');
-  if(!state.roteiros || !state.roteiros.length){
-    body.innerHTML = '<p class="empty-state">Nenhum roteiro criado ainda.</p>';
-    return;
-  }
-  const dates = [...new Set(state.roteiros.map(r=>r.date))].sort().reverse();
+// estado (só de tela, não precisa salvar) de quais seções estão abertas
+let roteirosSectionState = { rascunho: true, publicado: false };
+
+function renderRoteiroItemsHtml(items){
+  if(!items.length) return '<p class="empty-state" style="padding:6px 4px 4px;">Nada aqui ainda.</p>';
+  const dates = [...new Set(items.map(r=>r.date))].sort().reverse();
   let html = '';
   dates.forEach(date=>{
     html += `<div class="rot-day-head">${fmtDate(date)}<span class="d" style="color:var(--muted); font-weight:400; font-family:var(--font-mono); font-size:11px; margin-left:6px;">${date}</span></div>`;
-    const dayRoteiros = state.roteiros.filter(r=>r.date===date);
+    const dayRoteiros = items.filter(r=>r.date===date);
     const channelIds = [...new Set(dayRoteiros.map(r=>r.channelId))];
     channelIds.forEach(chId=>{
       const acc = state.accounts.find(a=>a.id===chId);
@@ -1080,7 +1087,42 @@ function renderRoteiros(){
       });
     });
   });
+  return html;
+}
+
+function renderRoteiros(){
+  const body = document.getElementById('roteiros-body');
+  if(!state.roteiros || !state.roteiros.length){
+    body.innerHTML = '<p class="empty-state">Nenhum roteiro criado ainda.</p>';
+    return;
+  }
+  const groups = [
+    { key:'rascunho',  label:'Rascunhos',  items: state.roteiros.filter(r=>r.status!=='publicado') },
+    { key:'publicado', label:'Publicados', items: state.roteiros.filter(r=>r.status==='publicado') },
+  ];
+  let html = '';
+  groups.forEach(group=>{
+    const expanded = !!roteirosSectionState[group.key];
+    html += `<div class="rot-section">
+      <button class="rot-section-head" data-section-toggle="${group.key}" type="button">
+        <span class="rot-section-chevron">${expanded ? '▾' : '▸'}</span>
+        <span class="rot-section-title">${group.label}</span>
+        <span class="rot-section-count">${group.items.length}</span>
+      </button>
+      <div class="rot-section-body" style="display:${expanded ? 'block' : 'none'}">
+        ${expanded ? renderRoteiroItemsHtml(group.items) : ''}
+      </div>
+    </div>`;
+  });
   body.innerHTML = html;
+
+  body.querySelectorAll('[data-section-toggle]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = btn.getAttribute('data-section-toggle');
+      roteirosSectionState[key] = !roteirosSectionState[key];
+      renderRoteiros();
+    });
+  });
   body.querySelectorAll('[data-rot-edit]').forEach(btn=> btn.addEventListener('click', ()=> openRotModal(state.roteiros.find(r=>r.id===btn.getAttribute('data-rot-edit')))));
   body.querySelectorAll('[data-rot-toggle]').forEach(btn=> btn.addEventListener('click', ()=> toggleRoteiroStatus(btn.getAttribute('data-rot-toggle'))));
   body.querySelectorAll('[data-rot-del]').forEach(btn=> btn.addEventListener('click', ()=> deleteRoteiro(btn.getAttribute('data-rot-del'))));
@@ -1113,15 +1155,99 @@ function copyRoteiroField(btn){
   }
 }
 
-// ---- tabs ----
-document.querySelectorAll('.tab').forEach(tab=>{
-  tab.addEventListener('click', ()=>{
-    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('panel-'+tab.getAttribute('data-tab')).classList.add('active');
+// ---- tabs (com reordenação por arrastar) ----
+const TAB_DEFS = [
+  { key:'hoje',       label:'Posts' },
+  { key:'seguidores', label:'Seguidores' },
+  { key:'grade',      label:'Grade' },
+  { key:'evolucao',   label:'Evolução' },
+  { key:'historico',  label:'Histórico' },
+  { key:'roteiros',   label:'Roteiros' },
+];
+const TAB_ORDER_KEY = 'central-postagens-tab-order-v1';
+
+function getTabOrder(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(TAB_ORDER_KEY) || 'null');
+    if(Array.isArray(saved) && saved.length === TAB_DEFS.length && TAB_DEFS.every(t => saved.includes(t.key))){
+      return saved;
+    }
+  }catch(e){}
+  return TAB_DEFS.map(t=>t.key);
+}
+function saveTabOrder(order){
+  try{ localStorage.setItem(TAB_ORDER_KEY, JSON.stringify(order)); }catch(e){}
+}
+
+function selectTab(key){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===key));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  const panel = document.getElementById('panel-'+key);
+  if(panel) panel.classList.add('active');
+}
+
+// arrastar (mouse e toque): segura um instante sem soltar/mover muito pra ativar o drag,
+// senão o clique normal e o scroll horizontal da barra continuam funcionando.
+const tabDrag = { el:null, active:false, moved:false, startX:0, startY:0, timer:null };
+
+function setupTabDragging(container){
+  container.querySelectorAll('.tab').forEach(btn=>{
+    btn.addEventListener('pointerdown', (e)=>{
+      tabDrag.startX = e.clientX; tabDrag.startY = e.clientY; tabDrag.moved = false;
+      clearTimeout(tabDrag.timer);
+      tabDrag.timer = setTimeout(()=>{
+        tabDrag.active = true; tabDrag.el = btn;
+        btn.classList.add('dragging');
+        try{ btn.setPointerCapture(e.pointerId); }catch(err){}
+      }, 260);
+    });
+    btn.addEventListener('pointermove', (e)=>{
+      if(tabDrag.timer && !tabDrag.active){
+        if(Math.abs(e.clientX-tabDrag.startX) > 8 || Math.abs(e.clientY-tabDrag.startY) > 8){
+          clearTimeout(tabDrag.timer); tabDrag.timer = null;
+        }
+      }
+      if(!tabDrag.active || tabDrag.el !== btn) return;
+      tabDrag.moved = true;
+      const items = [...container.querySelectorAll('.tab')];
+      const after = items.find(child=>{
+        if(child===btn) return false;
+        const box = child.getBoundingClientRect();
+        return e.clientX < box.left + box.width/2;
+      });
+      if(after) container.insertBefore(btn, after);
+      else container.appendChild(btn);
+    });
+    const finish = ()=>{
+      clearTimeout(tabDrag.timer); tabDrag.timer = null;
+      if(tabDrag.active && tabDrag.el===btn){
+        btn.classList.remove('dragging');
+        const order = [...container.querySelectorAll('.tab')].map(el=>el.getAttribute('data-tab'));
+        saveTabOrder(order);
+      }
+      tabDrag.active = false; tabDrag.el = null;
+    };
+    btn.addEventListener('pointerup', finish);
+    btn.addEventListener('pointercancel', finish);
+    btn.addEventListener('click', (e)=>{
+      if(tabDrag.moved){ e.preventDefault(); e.stopPropagation(); tabDrag.moved = false; return; }
+      selectTab(btn.getAttribute('data-tab'));
+    });
   });
-});
+}
+
+function renderTabsBar(){
+  const container = document.getElementById('tabs-container');
+  const order = getTabOrder();
+  const current = document.querySelector('.tab.active')?.getAttribute('data-tab') || order[0];
+  container.innerHTML = order.map(key=>{
+    const def = TAB_DEFS.find(t=>t.key===key);
+    return `<button class="tab${key===current?' active':''}" data-tab="${key}" type="button">${def.label}</button>`;
+  }).join('');
+  setupTabDragging(container);
+  selectTab(current);
+}
+renderTabsBar();
 
 function renderAll(){
   renderTopStats();
