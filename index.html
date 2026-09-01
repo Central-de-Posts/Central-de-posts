@@ -36,7 +36,7 @@
     -webkit-font-smoothing:antialiased; min-height:100vh;
   }
   .wrap{ max-width: 720px; margin:0 auto; padding: 22px 16px 90px; }
-
+ 
   /* header */
   .live-row{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
   .live-dot{
@@ -52,7 +52,7 @@
   .live-label{ font-family: var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color: var(--amber); }
   h1.title{ font-family: var(--font-display); font-weight:700; font-size: 30px; margin: 0 0 4px; letter-spacing:-0.01em; }
   .subtitle{ color: var(--muted); font-size: 13.5px; margin-bottom:18px; }
-
+ 
   .total-followers-box{
     background: linear-gradient(135deg, rgba(53,211,153,0.16), rgba(53,211,153,0.04));
     border: 1px solid rgba(53,211,153,0.3);
@@ -62,12 +62,25 @@
   .total-followers-box .tf-lbl{ color:var(--muted); font-size:11.5px; text-transform:uppercase; letter-spacing:.08em; font-family:var(--font-mono); }
   .total-followers-box .tf-num{ font-family: var(--font-mono); font-weight:700; font-size:32px; color: var(--good); line-height:1; margin-top:4px; }
   .total-followers-box .tf-icon{ font-size:26px; opacity:0.85; flex-shrink:0; }
-
+  .tf-photo-wrap{ position:relative; flex-shrink:0; }
+  .tf-photo{
+    width:48px; height:48px; border-radius:50%; background: rgba(255,255,255,0.07);
+    display:flex; align-items:center; justify-content:center; font-size:22px; cursor:pointer;
+    background-size:cover; background-position:center; border:2px solid rgba(53,211,153,0.3);
+    transition: border-color .15s; color:var(--text);
+  }
+  .tf-photo:hover{ border-color: var(--good); }
+  .tf-photo-remove{
+    position:absolute; top:-3px; right:-3px; width:18px; height:18px; border-radius:50%;
+    background: var(--bad); color:#fff; border:2px solid var(--bg); font-size:10px; line-height:1;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;
+  }
+ 
   .stat-grid{ display:grid; grid-template-columns: repeat(3,1fr); gap:10px; margin-bottom: 22px; }
   .stat-box{ background: var(--row); border-radius:14px; padding:14px 16px; }
   .stat-box .num{ font-family: var(--font-mono); font-weight:700; font-size:26px; }
   .stat-box .lbl{ color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; margin-top:2px; }
-
+ 
   /* segmented tabs */
   .tabs{
     display:flex; gap:3px; background: var(--surface); border-radius:12px; padding:4px;
@@ -80,13 +93,13 @@
   }
   .tab.active{ background: var(--row-hover); color: var(--text); }
   .tab.dragging{ opacity:0.55; background: var(--row-hover); transform:scale(1.04); box-shadow:0 6px 16px rgba(0,0,0,0.4); z-index:5; }
-  .tab{ touch-action: pan-x; user-select:none; -webkit-user-select:none; }
+  .tab{ touch-action: none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
   .tabs-hint{ text-align:center; color:var(--muted-2); font-size:10.5px; margin: -12px 0 16px; }
-
+ 
   .panel{ display:none; }
   .panel.active{ display:block; animation: fadein .16s ease; }
   @keyframes fadein{ from{opacity:0; transform:translateY(3px);} to{opacity:1; transform:none;} }
-
+ 
   /* platform section */
   .plat-divider{ border:none; border-top:1px solid var(--line); margin: 22px 0 14px; }
   .plat-divider:first-child{ display:none; }
@@ -100,7 +113,7 @@
   .pill[data-platform="instagram"]{ background: linear-gradient(120deg, var(--instagram-a), var(--instagram-b)); color:#fff;}
   .pill[data-platform="facebook"]{ background: linear-gradient(120deg, var(--facebook-a), var(--facebook-b)); color:#fff;}
   .plat-count{ font-family:var(--font-mono); font-size:12px; color:var(--muted); }
-
+ 
   /* rows */
   .row{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -112,7 +125,7 @@
   .row-left .rname{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .del-x{ background:none; border:none; color:var(--muted-2); cursor:pointer; font-size:13px; padding:4px 6px; }
   .del-x:hover{ color: var(--bad); }
-
+ 
   /* stepper */
   .stepper{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
   .step-btn{
@@ -122,7 +135,7 @@
   }
   .step-btn:hover{ background: var(--row-hover); }
   .step-val{ font-family:var(--font-mono); font-weight:700; font-size:15px; min-width:20px; text-align:center; }
-
+ 
   /* followers edit */
   .fw-edit{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
   .fw-input{
@@ -133,16 +146,16 @@
   .fw-delta.pos{ color: var(--good); background: rgba(53,211,153,0.12); }
   .fw-delta.neg{ color: var(--bad); background: rgba(255,90,90,0.12); }
   .fw-delta.zero{ color: var(--muted-2); background: rgba(255,255,255,0.04); }
-
+ 
   .add-row{
     border:1px dashed var(--line); border-radius:14px; padding:13px 16px; text-align:center;
     color:var(--muted); font-size:13px; cursor:pointer; margin-bottom:8px;
   }
   .add-row:hover{ color:var(--text); border-color: var(--good); }
-
+ 
   .section-title{ font-family: var(--font-display); font-weight:700; font-size:17px; margin: 4px 0 4px; }
   .section-sub{ color:var(--muted); font-size:13px; margin: 0 0 16px; }
-
+ 
   .date-toggle{ background:none; border:none; color:var(--muted); font-size:12px; text-decoration:underline; cursor:pointer; padding:0; margin-bottom:14px; }
   .date-picker-wrap{ display:none; margin-bottom:16px; }
   .date-picker-wrap.show{ display:block; }
@@ -150,7 +163,7 @@
     background: var(--row); border:1px solid var(--line); color:var(--text); border-radius:9px;
     padding:8px 10px; font-family: var(--font-mono); font-size:13.5px;
   }
-
+ 
   /* heatmap */
   .heatmap-scroll{ overflow-x:auto; padding-bottom:6px; }
   table.heatmap{ border-collapse:separate; border-spacing:4px; font-size:11px; }
@@ -160,7 +173,7 @@
     position:sticky; left:0; background:var(--bg);
   }
   table.heatmap td.cell{ width:24px; height:24px; text-align:center; border-radius:6px; font-family:var(--font-mono); font-size:10px; font-weight:700; }
-
+ 
   /* ranking */
   .rank-row{ display:flex; align-items:center; gap:10px; margin-bottom:8px; }
   .rank-plat{ font-family:var(--font-mono); font-size:9.5px; font-weight:700; padding:3px 6px; border-radius:6px; flex-shrink:0; }
@@ -168,7 +181,7 @@
   .rank-bar-track{ flex:1; background:var(--surface); border-radius:8px; height:18px; overflow:hidden;}
   .rank-bar-fill{ height:100%; border-radius:8px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px;}
   .rank-val{ font-family:var(--font-mono); font-size:10.5px; color:#0A0B0F; font-weight:700;}
-
+ 
   /* evolution */
   .chart-controls{ display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
   select{
@@ -181,7 +194,7 @@
   .evo-item{ margin-bottom:8px; }
   .evo-chevron{ color:var(--muted); font-size:13px; flex-shrink:0; }
   .evo-expand{ padding: 12px 2px 4px; }
-
+ 
   /* history */
   .hist-date-head{ font-family: var(--font-display); font-weight:600; font-size:13.5px; color:var(--text); margin: 20px 0 8px; }
   .hist-date-head .d{ color:var(--muted); font-weight:400; font-family:var(--font-mono); font-size:11px; margin-left:6px;}
@@ -199,7 +212,7 @@
   .chart-tooltip{ position:fixed; z-index:9999; pointer-events:none; background:#12141c; border:1px solid var(--line); border-radius:8px; padding:6px 10px; box-shadow:0 8px 20px rgba(0,0,0,0.45); display:none; white-space:nowrap; }
   .chart-tooltip .tt-date{ display:block; color:var(--muted); font-size:9.5px; font-family:var(--font-mono); margin-bottom:2px; }
   .chart-tooltip .tt-val{ font-weight:700; font-size:13px; font-family:var(--font-mono); }
-
+ 
   .empty-state{ color:var(--muted); font-size:13px; padding: 20px 0; }
   .btn{
     font-family: var(--font-body); font-weight:700; font-size: 13.5px; background: var(--good); color:#06120D;
@@ -207,7 +220,7 @@
   }
   .btn.secondary{ background: var(--row); color:var(--text); border:1px solid var(--line); }
   .btn.small{ padding:6px 11px; font-size:12px; }
-
+ 
   .toast{
     position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
     background: var(--good); color:#06120D; padding:10px 18px; border-radius:10px;
@@ -215,7 +228,7 @@
   }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
   .toast.err{ background: var(--bad); }
-
+ 
   .save-banner{
     display:none; align-items:center; gap:8px; background: rgba(255,90,90,0.12); border:1px solid rgba(255,90,90,0.35);
     color:#FFB3B3; font-size:12.5px; padding:9px 12px; border-radius:10px; margin-bottom:14px;
@@ -225,7 +238,7 @@
     background:none; border:1px solid rgba(255,90,90,0.5); color:#FFB3B3; border-radius:7px; font-size:11.5px;
     padding:4px 9px; cursor:pointer; margin-left:auto;
   }
-
+ 
   .modal-bg{ display:none; position:fixed; inset:0; background:rgba(6,7,10,0.72); z-index:60; align-items:center; justify-content:center; padding:16px; }
   .modal-bg.show{ display:flex; }
   .modal{ background: var(--surface); border-radius:16px; padding: 22px; width:100%; max-width:380px; max-height:88vh; overflow-y:auto; }
@@ -238,13 +251,13 @@
   }
   .modal-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:6px; }
   .field-hint{ font-size:11px; color:var(--muted-2); margin:-7px 0 10px; line-height:1.35; }
-
+ 
   .rname-wrap{ display:flex; align-items:center; gap:6px; min-width:0; }
   a.rname{ color:var(--text); text-decoration:none; }
   a.rname:hover{ text-decoration:underline; }
   .icon-btn{ background:none; border:none; color:var(--muted-2); cursor:pointer; font-size:12px; padding:2px 3px; flex-shrink:0; line-height:1; }
   .icon-btn:hover{ color:var(--text); }
-
+ 
   /* roteiros */
   .rot-add-btn{
     width:100%; background: var(--good); color:#06120D; border:none; border-radius:12px;
@@ -273,7 +286,7 @@
   .rot-status.publicado{ color: var(--good); background: rgba(53,211,153,0.14); }
   .rot-card-actions{ display:flex; gap:8px; margin-top:12px; }
   .rot-card-actions .btn{ padding:7px 12px; font-size:12px; }
-
+ 
   /* roteiros: seções colapsáveis rascunho/publicado */
   .rot-section{ margin-bottom:14px; }
   .rot-section-head{
@@ -288,33 +301,37 @@
 </head>
 <body>
 <div class="wrap">
-
+ 
   <div class="live-row"><span class="live-dot"></span><span class="live-label" id="live-label">Ao vivo — 17 contas</span></div>
   <h1 class="title">Central de Postagens</h1>
   <div class="subtitle" id="subtitle-date"></div>
-
+ 
   <div class="save-banner" id="save-banner">
     <span>Não consegui salvar as últimas mudanças. Elas continuam aqui na tela.</span>
     <button id="retry-save-btn">Tentar salvar de novo</button>
   </div>
-
+ 
   <div class="total-followers-box">
     <div>
       <div class="tf-lbl">Seguidores em todas as contas</div>
       <div class="tf-num" id="stat-total-followers">0</div>
     </div>
-    <div class="tf-icon">👥</div>
+    <div class="tf-photo-wrap">
+      <div class="tf-photo" id="tf-photo" title="Clique para adicionar/trocar foto">👥</div>
+      <button class="tf-photo-remove" id="tf-photo-remove" title="Remover foto" style="display:none;" type="button">✕</button>
+      <input type="file" id="tf-photo-input" accept="image/*" style="display:none;">
+    </div>
   </div>
-
+ 
   <div class="stat-grid">
     <div class="stat-box"><div class="num" id="stat-today">0</div><div class="lbl">Hoje</div></div>
     <div class="stat-box"><div class="num" id="stat-7d">0</div><div class="lbl">7 dias</div></div>
     <div class="stat-box"><div class="num" id="stat-total">0</div><div class="lbl">Total</div></div>
   </div>
-
+ 
   <div class="tabs" id="tabs-container"></div>
   <div class="tabs-hint" id="tabs-hint">segure e arraste uma aba pra reordenar</div>
-
+ 
   <!-- HOJE -->
   <div class="panel active" id="panel-hoje">
     <button class="date-toggle" id="toggle-date">registrar em outro dia</button>
@@ -323,13 +340,13 @@
     </div>
     <div id="hoje-body"></div>
   </div>
-
+ 
   <!-- SEGUIDORES -->
   <div class="panel" id="panel-seguidores">
     <p class="section-sub">Atualize o número de seguidores/inscritos de cada conta. A variação é comparada com o último valor registrado antes de hoje.</p>
     <div id="seguidores-body"></div>
   </div>
-
+ 
   <!-- GRADE -->
   <div class="panel" id="panel-grade">
     <div class="section-title">Onde eu estou postando mais</div>
@@ -339,30 +356,30 @@
     <p class="section-sub">Soma de todos os vídeos/posts já registrados por conta.</p>
     <div id="ranking-body"></div>
   </div>
-
+ 
   <!-- EVOLUÇÃO -->
   <div class="panel" id="panel-evolucao">
     <p class="section-sub">Clique numa conta pra ver a evolução de posts e de seguidores. O número ao lado de cada conta (ex: <span style="color:var(--good); font-weight:600;">▲ +189</span>) é o total acumulado <strong>desde o primeiro registro</strong> dessa conta — não é de 7 dias nem de 1 mês, é o histórico completo, e vai só crescendo (ou caindo) conforme os seguidores mudam, sem nunca reiniciar sozinho.</p>
     <div id="evolucao-body"></div>
   </div>
-
+ 
   <!-- HISTÓRICO -->
   <div class="panel" id="panel-historico">
     <p class="section-sub">Todos os dias já lançados, mais recentes primeiro.</p>
     <div id="history-body"></div>
   </div>
-
+ 
   <!-- ROTEIROS -->
   <div class="panel" id="panel-roteiros">
     <p class="section-sub">Título, legenda, links de vídeo pra edição e canal de publicação — organizado por dia.</p>
     <button class="rot-add-btn" id="rot-add-btn">+ Novo roteiro</button>
     <div id="roteiros-body"></div>
   </div>
-
+ 
 </div>
-
+ 
 <div class="chart-tooltip" id="chart-tooltip"></div>
-
+ 
 <div class="modal-bg" id="add-modal">
   <div class="modal">
     <h3>Nova conta</h3>
@@ -383,7 +400,7 @@
     </div>
   </div>
 </div>
-
+ 
 <div class="modal-bg" id="rot-modal">
   <div class="modal">
     <h3 id="rot-modal-title">Novo roteiro</h3>
@@ -409,9 +426,9 @@
     </div>
   </div>
 </div>
-
+ 
 <div class="toast" id="toast">Salvo</div>
-
+ 
 <script>
 const PLATFORMS = {
   tiktok:    { label: 'TikTok',    hex:'#FE2C55', abbr:'TT' },
@@ -421,7 +438,7 @@ const PLATFORMS = {
 };
 const TODAY = new Date().toISOString().slice(0,10);
 const STORAGE_KEY = 'tracker-data-v1';
-
+ 
 const SUPABASE_URL = 'https://nfqaqomklgddyitwvkin.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mcWFxb21rbGdkZHlpdHd2a2luIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODMzMjQsImV4cCI6MjEwMzc1OTMyNH0.0cbVbC48EO-6oeNcqVHI3upfcEhBgvHDJ7S5H9yIHLU';
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -433,13 +450,13 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   }
 });
 const STATE_ROW_ID = 'main';
-
+ 
 let state = { accounts: [], entries: [], roteiros: [] };
 let saveTimer = null;
 let pendingSave = false;
 let saveRetryCount = 0;
 let saveInFlight = false;
-
+ 
 function seed(){
   const accounts = [
     {id:'tt-1', platform:'tiktok', name:'renan.sarabia.fut', initialFollowers:0},
@@ -463,7 +480,7 @@ function seed(){
   const entries = accounts.map(a => ({date: '2026-08-29', accountId: a.id, posts: 0, followers: a.initialFollowers}));
   return { accounts, entries, roteiros: [] };
 }
-
+ 
 async function loadData(){
   // retry a few times before concluding there's really nothing saved yet —
   // avoids overwriting real data with the seed if the storage service just hiccups
@@ -487,7 +504,7 @@ async function loadData(){
 }
 function showBanner(){ document.getElementById('save-banner').classList.add('show'); }
 function hideBanner(){ document.getElementById('save-banner').classList.remove('show'); }
-
+ 
 async function attemptSave(){
   if(saveInFlight) return; // avoid overlapping writes
   saveInFlight = true;
@@ -510,7 +527,7 @@ async function attemptSave(){
   }
   saveInFlight = false;
 }
-
+ 
 async function saveData(immediate){
   if(immediate){
     await attemptSave();
@@ -519,16 +536,16 @@ async function saveData(immediate){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(()=>{ attemptSave(); }, 350);
 }
-
+ 
 document.getElementById('retry-save-btn').addEventListener('click', ()=>{
   saveRetryCount = 0;
   attemptSave();
 });
-
+ 
 window.addEventListener('beforeunload', (e)=>{
   if(pendingSave){ e.preventDefault(); e.returnValue = ''; }
 });
-
+ 
 function showToast(msg, isError){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.toggle('err', !!isError); t.classList.add('show');
@@ -542,6 +559,68 @@ function hexToRgba(hex, alpha){
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// ---- foto de perfil ----
+function renderProfilePhoto(){
+  const el = document.getElementById('tf-photo');
+  const removeBtn = document.getElementById('tf-photo-remove');
+  if(!el) return;
+  if(state.profilePhoto){
+    el.style.backgroundImage = `url(${state.profilePhoto})`;
+    el.textContent = '';
+    removeBtn.style.display = 'flex';
+  }else{
+    el.style.backgroundImage = '';
+    el.textContent = '👥';
+    removeBtn.style.display = 'none';
+  }
+}
+function resizeImageToDataURL(file, size, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.max(size/img.width, size/img.height);
+        const w = img.width*scale, h = img.height*scale;
+        ctx.drawImage(img, (size-w)/2, (size-h)/2, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+document.getElementById('tf-photo').addEventListener('click', ()=>{
+  document.getElementById('tf-photo-input').click();
+});
+document.getElementById('tf-photo-remove').addEventListener('click', async (ev)=>{
+  ev.stopPropagation();
+  state.profilePhoto = null;
+  await saveData(true);
+  renderProfilePhoto();
+  showToast('Foto removida');
+});
+document.getElementById('tf-photo-input').addEventListener('change', async (ev)=>{
+  const file = ev.target.files[0];
+  if(!file) return;
+  try{
+    const dataUrl = await resizeImageToDataURL(file, 200, 0.85);
+    state.profilePhoto = dataUrl;
+    await saveData(true);
+    renderProfilePhoto();
+    showToast('Foto atualizada');
+  }catch(err){
+    console.error(err);
+    showToast('Não consegui processar essa imagem', true);
+  }
+  ev.target.value = '';
+});
+ 
 // ---- derived ----
 function entriesFor(accountId){ return state.entries.filter(e=>e.accountId===accountId).sort((a,b)=>a.date.localeCompare(b.date)); }
 function latestFollowers(accountId, beforeDate){
@@ -580,7 +659,7 @@ function last7Sum(){
   const cutoffStr = cutoff.toISOString().slice(0,10);
   return state.entries.filter(e=> e.date>=cutoffStr && e.date<=TODAY).reduce((s,e)=> s+(e.posts||0), 0);
 }
-
+ 
 function incrementPostCount(date, accountId){
   if(!date || !accountId) return;
   const e = ensureEntry(date, accountId);
@@ -591,14 +670,15 @@ function decrementPostCount(date, accountId){
   const e = getEntry(date, accountId);
   if(e) e.posts = Math.max(0, (e.posts||0) - 1);
 }
-
+ 
 function currentWorkDate(){
   const wd = document.getElementById('work-date');
   return (wd && wd.value) ? wd.value : TODAY;
 }
-
+ 
 // ---- top stats ----
 function renderTopStats(){
+  renderProfilePhoto();
   document.getElementById('subtitle-date').textContent = 'Hoje é ' + fmtDate(TODAY) + '/' + TODAY.slice(2,4);
   document.getElementById('live-label').textContent = 'Ao vivo — ' + state.accounts.length + ' contas';
   document.getElementById('stat-total-followers').textContent = fmtNum(totalFollowersAll());
@@ -608,7 +688,7 @@ function renderTopStats(){
   const total = state.accounts.reduce((s,a)=> s+totalPosts(a.id), 0);
   document.getElementById('stat-total').textContent = fmtNum(total);
 }
-
+ 
 // ---- HOJE tab: stepper rows ----
 function renderHoje(){
   const date = currentWorkDate();
@@ -644,7 +724,7 @@ function renderHoje(){
     html += `<div class="add-row" data-add-platform="${pk}">+ adicionar conta</div>`;
   });
   document.getElementById('hoje-body').innerHTML = html;
-
+ 
   document.querySelectorAll('[data-step]').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const accId = btn.getAttribute('data-acc');
@@ -689,14 +769,14 @@ function renderHoje(){
     });
   });
 }
-
+ 
 document.getElementById('toggle-date').addEventListener('click', ()=>{
   const wrap = document.getElementById('date-picker-wrap');
   wrap.classList.toggle('show');
   if(!document.getElementById('work-date').value) document.getElementById('work-date').value = TODAY;
 });
 document.getElementById('work-date').addEventListener('change', renderHoje);
-
+ 
 // ---- SEGUIDORES tab ----
 function renderSeguidores(){
   let html = '';
@@ -725,7 +805,7 @@ function renderSeguidores(){
     });
   });
   document.getElementById('seguidores-body').innerHTML = html;
-
+ 
   document.querySelectorAll('[data-fw-acc]').forEach(inp=>{
     inp.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ inp.blur(); } });
     inp.addEventListener('change', async ()=>{
@@ -739,7 +819,7 @@ function renderSeguidores(){
     });
   });
 }
-
+ 
 // ---- modal ----
 function openAddModal(platform){
   document.getElementById('new-platform').value = platform;
@@ -761,7 +841,7 @@ document.getElementById('confirm-add').addEventListener('click', async ()=>{
   showToast('Conta adicionada');
   renderAll();
 });
-
+ 
 // ---- GRADE (heatmap + ranking) ----
 function last14Days(){
   const days = []; const base = new Date(TODAY+'T00:00:00');
@@ -790,7 +870,7 @@ function renderGrade(){
   });
   html += '</tbody></table>';
   document.getElementById('heatmap-body').innerHTML = html;
-
+ 
   const ranked = [...state.accounts].map(a=>({...a, total: totalPosts(a.id)})).sort((x,y)=>y.total-x.total);
   const max = Math.max(1, ...ranked.map(a=>a.total));
   let rankHtml = '';
@@ -805,7 +885,7 @@ function renderGrade(){
   });
   document.getElementById('ranking-body').innerHTML = rankHtml || '<p class="empty-state">Sem dados ainda.</p>';
 }
-
+ 
 // ---- EVOLUÇÃO (accordion com dois gráficos por conta) ----
 function chartSVG(accountId, metric){
   const es = entriesFor(accountId);
@@ -815,7 +895,7 @@ function chartSVG(accountId, metric){
   const realPoints = es.map(e=>{ if(metric==='followers') return {date:e.date, value:e.followers}; cumulative+=(e.posts||0); return {date:e.date, value:cumulative}; });
   const baselineValue = metric==='followers' ? acc.initialFollowers : 0;
   const points = [{date:'inicio', value: baselineValue, baseline:true}, ...realPoints];
-
+ 
   const W = Math.max(500, points.length*55), H=170, padL=44, padR=14, padT=14, padB=26;
   const vals = points.map(pt=>pt.value); const minV=Math.min(...vals), maxV=Math.max(...vals); const range=(maxV-minV)||1;
   const xStep=(W-padL-padR)/(points.length-1);
@@ -850,7 +930,7 @@ function chartSVG(accountId, metric){
     ${deltaBadge(totalDelta)}
   </div>`;
 }
-
+ 
 function renderEvolucao(){
   let html = '';
   Object.keys(PLATFORMS).forEach(pk=>{
@@ -883,7 +963,7 @@ function renderEvolucao(){
     });
   });
   document.getElementById('evolucao-body').innerHTML = html || '<p class="empty-state">Nenhuma conta cadastrada ainda.</p>';
-
+ 
   document.querySelectorAll('.evo-toggle').forEach(el=>{
     el.addEventListener('click', ()=>{
       const id = el.getAttribute('data-acc');
@@ -895,7 +975,7 @@ function renderEvolucao(){
     });
   });
 }
-
+ 
 // ---- HISTÓRICO ----
 function renderHistorico(){
   const dates = allDatesSorted().reverse();
@@ -946,10 +1026,10 @@ function renderHistorico(){
     });
   });
 }
-
+ 
 // ---- ROTEIROS ----
 let rotEditingId = null;
-
+ 
 function populateRotChannelSelect(){
   const sel = document.getElementById('rot-channel');
   let html = '';
@@ -963,7 +1043,7 @@ function populateRotChannelSelect(){
   });
   sel.innerHTML = html || '<option value="">Nenhuma conta cadastrada ainda</option>';
 }
-
+ 
 function openRotModal(existing){
   populateRotChannelSelect();
   rotEditingId = existing ? existing.id : null;
@@ -978,7 +1058,7 @@ function openRotModal(existing){
 }
 document.getElementById('rot-add-btn').addEventListener('click', ()=> openRotModal(null));
 document.getElementById('rot-cancel').addEventListener('click', ()=> document.getElementById('rot-modal').classList.remove('show'));
-
+ 
 document.getElementById('rot-confirm').addEventListener('click', async ()=>{
   const title = document.getElementById('rot-title').value.trim();
   const script = document.getElementById('rot-script').value.trim();
@@ -988,7 +1068,7 @@ document.getElementById('rot-confirm').addEventListener('click', async ()=>{
   const date = document.getElementById('rot-date').value || TODAY;
   if(!title){ alert('Dê um título pro roteiro.'); return; }
   if(!channelId){ alert('Cadastre uma conta antes de criar um roteiro (aba Hoje).'); return; }
-
+ 
   if(rotEditingId){
     const r = state.roteiros.find(x=>x.id===rotEditingId);
     if(r.postCounted && (r.countedDate !== date || r.countedChannelId !== channelId)){
@@ -1009,7 +1089,7 @@ document.getElementById('rot-confirm').addEventListener('click', async ()=>{
   showToast('Roteiro salvo');
   renderAll();
 });
-
+ 
 function toggleRoteiroStatus(id){
   const r = state.roteiros.find(x=>x.id===id);
   if(!r) return;
@@ -1043,10 +1123,10 @@ function deleteRoteiro(id){
   saveData(true);
   renderAll();
 }
-
+ 
 // estado (só de tela, não precisa salvar) de quais seções estão abertas
 let roteirosSectionState = { rascunho: true, publicado: false };
-
+ 
 function renderRoteiroItemsHtml(items){
   if(!items.length) return '<p class="empty-state" style="padding:6px 4px 4px;">Nada aqui ainda.</p>';
   const dates = [...new Set(items.map(r=>r.date))].sort().reverse();
@@ -1089,7 +1169,7 @@ function renderRoteiroItemsHtml(items){
   });
   return html;
 }
-
+ 
 function renderRoteiros(){
   const body = document.getElementById('roteiros-body');
   if(!state.roteiros || !state.roteiros.length){
@@ -1115,7 +1195,7 @@ function renderRoteiros(){
     </div>`;
   });
   body.innerHTML = html;
-
+ 
   body.querySelectorAll('[data-section-toggle]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const key = btn.getAttribute('data-section-toggle');
@@ -1128,21 +1208,21 @@ function renderRoteiros(){
   body.querySelectorAll('[data-rot-del]').forEach(btn=> btn.addEventListener('click', ()=> deleteRoteiro(btn.getAttribute('data-rot-del'))));
   body.querySelectorAll('[data-copy-field]').forEach(btn=> btn.addEventListener('click', ()=> copyRoteiroField(btn)));
 }
-
+ 
 function copyRoteiroField(btn){
   const r = state.roteiros.find(x=>x.id===btn.getAttribute('data-copy-id'));
   if(!r) return;
   const field = btn.getAttribute('data-copy-field');
   const text = field === 'links' ? (r.videoLinks||[]).join('\n') : (r[field] || '');
   if(!text){ showToast('Nada pra copiar aqui', true); return; }
-
+ 
   const done = ()=>{
     const original = btn.textContent;
     btn.textContent = '✓ Copiado';
     btn.classList.add('copied');
     setTimeout(()=>{ btn.textContent = original; btn.classList.remove('copied'); }, 1400);
   };
-
+ 
   if(navigator.clipboard && window.isSecureContext){
     navigator.clipboard.writeText(text).then(done).catch(()=> showToast('Não consegui copiar', true));
   }else{
@@ -1154,7 +1234,7 @@ function copyRoteiroField(btn){
     document.body.removeChild(ta);
   }
 }
-
+ 
 // ---- tabs (com reordenação por arrastar) ----
 const TAB_DEFS = [
   { key:'hoje',       label:'Posts' },
@@ -1165,7 +1245,7 @@ const TAB_DEFS = [
   { key:'roteiros',   label:'Roteiros' },
 ];
 const TAB_ORDER_KEY = 'central-postagens-tab-order-v1';
-
+ 
 function getTabOrder(){
   try{
     const saved = JSON.parse(localStorage.getItem(TAB_ORDER_KEY) || 'null');
@@ -1178,36 +1258,57 @@ function getTabOrder(){
 function saveTabOrder(order){
   try{ localStorage.setItem(TAB_ORDER_KEY, JSON.stringify(order)); }catch(e){}
 }
-
+ 
 function selectTab(key){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===key));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   const panel = document.getElementById('panel-'+key);
   if(panel) panel.classList.add('active');
 }
-
+ 
 // arrastar (mouse e toque): segura um instante sem soltar/mover muito pra ativar o drag,
 // senão o clique normal e o scroll horizontal da barra continuam funcionando.
-const tabDrag = { el:null, active:false, moved:false, startX:0, startY:0, timer:null };
-
+const tabDrag = { el:null, active:false, moved:false, startX:0, startY:0, timer:null, pointerId:null, pendingEl:null };
+ 
 function setupTabDragging(container){
   container.querySelectorAll('.tab').forEach(btn=>{
     btn.addEventListener('pointerdown', (e)=>{
+      if(e.button !== undefined && e.button !== 0) return; // só o botão principal do mouse
       tabDrag.startX = e.clientX; tabDrag.startY = e.clientY; tabDrag.moved = false;
+      tabDrag.pointerId = e.pointerId;
+      // a captura do ponteiro precisa acontecer aqui, de forma síncrona dentro do próprio
+      // evento pointerdown — se ela for feita depois (ex: dentro do setTimeout), o navegador
+      // perde o rastro do ponteiro assim que ele desliza por cima de outra aba, e o "arrastar"
+      // simplesmente para de funcionar no meio do caminho.
+      try{ btn.setPointerCapture(e.pointerId); }catch(err){}
       clearTimeout(tabDrag.timer);
-      tabDrag.timer = setTimeout(()=>{
-        tabDrag.active = true; tabDrag.el = btn;
-        btn.classList.add('dragging');
-        try{ btn.setPointerCapture(e.pointerId); }catch(err){}
-      }, 260);
+      if(e.pointerType === 'mouse'){
+        // no mouse não existe o conflito com "rolar a tela", então não precisa segurar
+        // parado — o próprio movimento do clique já ativa o arrastar, na hora.
+        tabDrag.pendingEl = btn;
+      }else{
+        tabDrag.timer = setTimeout(()=>{
+          tabDrag.active = true; tabDrag.el = btn;
+          btn.classList.add('dragging');
+          if(navigator.vibrate) navigator.vibrate(12);
+        }, 220);
+      }
     });
     btn.addEventListener('pointermove', (e)=>{
+      if(e.pointerId !== tabDrag.pointerId) return;
+      if(e.pointerType === 'mouse' && !tabDrag.active && tabDrag.pendingEl === btn){
+        if(Math.abs(e.clientX-tabDrag.startX) > 4 || Math.abs(e.clientY-tabDrag.startY) > 4){
+          tabDrag.active = true; tabDrag.el = btn;
+          btn.classList.add('dragging');
+        }
+      }
       if(tabDrag.timer && !tabDrag.active){
         if(Math.abs(e.clientX-tabDrag.startX) > 8 || Math.abs(e.clientY-tabDrag.startY) > 8){
           clearTimeout(tabDrag.timer); tabDrag.timer = null;
         }
       }
       if(!tabDrag.active || tabDrag.el !== btn) return;
+      e.preventDefault();
       tabDrag.moved = true;
       const items = [...container.querySelectorAll('.tab')];
       const after = items.find(child=>{
@@ -1218,24 +1319,26 @@ function setupTabDragging(container){
       if(after) container.insertBefore(btn, after);
       else container.appendChild(btn);
     });
-    const finish = ()=>{
+    const finish = (e)=>{
+      if(e && e.pointerId !== tabDrag.pointerId) return;
       clearTimeout(tabDrag.timer); tabDrag.timer = null;
       if(tabDrag.active && tabDrag.el===btn){
         btn.classList.remove('dragging');
         const order = [...container.querySelectorAll('.tab')].map(el=>el.getAttribute('data-tab'));
         saveTabOrder(order);
       }
-      tabDrag.active = false; tabDrag.el = null;
+      tabDrag.active = false; tabDrag.el = null; tabDrag.pointerId = null; tabDrag.pendingEl = null;
     };
     btn.addEventListener('pointerup', finish);
     btn.addEventListener('pointercancel', finish);
+    btn.addEventListener('lostpointercapture', finish);
     btn.addEventListener('click', (e)=>{
       if(tabDrag.moved){ e.preventDefault(); e.stopPropagation(); tabDrag.moved = false; return; }
       selectTab(btn.getAttribute('data-tab'));
     });
   });
 }
-
+ 
 function renderTabsBar(){
   const container = document.getElementById('tabs-container');
   const order = getTabOrder();
@@ -1248,7 +1351,7 @@ function renderTabsBar(){
   selectTab(current);
 }
 renderTabsBar();
-
+ 
 function renderAll(){
   renderTopStats();
   renderHoje();
@@ -1258,7 +1361,7 @@ function renderAll(){
   renderHistorico();
   renderRoteiros();
 }
-
+ 
 // ---- TOOLTIPS DOS GRÁFICOS (funciona em todos os gráficos de Evolução) ----
 const chartTooltipEl = document.getElementById('chart-tooltip');
 function positionChartTooltip(clientX, clientY){
@@ -1280,7 +1383,7 @@ function showChartTooltip(dot, clientX, clientY){
   positionChartTooltip(clientX, clientY);
 }
 function hideChartTooltip(){ chartTooltipEl.style.display = 'none'; }
-
+ 
 // Hover com mouse (desktop)
 document.addEventListener('pointerover', (e)=>{
   if(e.pointerType && e.pointerType !== 'mouse') return;
@@ -1303,12 +1406,12 @@ document.addEventListener('click', (e)=>{
   if(dot){ showChartTooltip(dot, e.clientX, e.clientY); e.stopPropagation(); }
   else hideChartTooltip();
 });
-
+ 
 (async function init(){
   await loadData();
   renderAll();
 })();
-
+ 
 // Recarrega os dados do Supabase sempre que o app volta a ficar visível
 // (trocar de aba, sair e voltar no celular, etc). Ajuda a evitar telas
 // desatualizadas em apps salvos na tela de início do iOS.
@@ -1338,7 +1441,7 @@ document.addEventListener('visibilitychange', ()=>{
 });
 window.addEventListener('pageshow', refetchOnReturn);
 window.addEventListener('focus', refetchOnReturn);
-
+ 
 </script>
 </body>
 </html>
