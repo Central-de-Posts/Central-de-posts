@@ -393,7 +393,14 @@ const STORAGE_KEY = 'tracker-data-v1';
 
 const SUPABASE_URL = 'https://nfqaqomklgddyitwvkin.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mcWFxb21rbGdkZHlpdHd2a2luIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODMzMjQsImV4cCI6MjEwMzc1OTMyNH0.0cbVbC48EO-6oeNcqVHI3upfcEhBgvHDJ7S5H9yIHLU';
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: {
+    // iOS/Safari (principalmente em apps salvos na tela de início) às vezes guarda em
+    // cache a resposta dessa chamada de rede e não busca de novo mesmo recarregando a
+    // página. Forçamos aqui pra nunca usar esse cache escondido.
+    fetch: (url, options) => fetch(url, { ...(options || {}), cache: 'no-store' })
+  }
+});
 const STATE_ROW_ID = 'main';
 
 let state = { accounts: [], entries: [], roteiros: [] };
@@ -1094,6 +1101,37 @@ function renderAll(){
   await loadData();
   renderAll();
 })();
+
+// Recarrega os dados do Supabase sempre que o app volta a ficar visível
+// (trocar de aba, sair e voltar no celular, etc). Ajuda a evitar telas
+// desatualizadas em apps salvos na tela de início do iOS.
+// Importante: essa função NUNCA restaura o "seed" nem salva nada — se a
+// busca falhar (ex: sem internet no momento), ela simplesmente desiste e
+// mantém os dados que já estavam na tela, pra nunca arriscar sobrescrever
+// dados reais por causa de uma falha de rede passageira.
+let refetchInFlight = false;
+async function refetchOnReturn(){
+  if(refetchInFlight || pendingSave || saveInFlight) return;
+  refetchInFlight = true;
+  try{
+    const { data, error } = await sb.from('tracker_state').select('data').eq('id', STATE_ROW_ID).maybeSingle();
+    if(!error && data && data.data){
+      state = data.data;
+      if(!state.roteiros) state.roteiros = [];
+      renderAll();
+    }
+  }catch(e){
+    console.error('Refetch on return failed (mantendo dados atuais):', e);
+  } finally {
+    refetchInFlight = false;
+  }
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') refetchOnReturn();
+});
+window.addEventListener('pageshow', refetchOnReturn);
+window.addEventListener('focus', refetchOnReturn);
+
 </script>
 </body>
 </html>
