@@ -92,9 +92,6 @@
     transition: background .15s, color .15s;
   }
   .tab.active{ background: var(--row-hover); color: var(--text); }
-  .tab.dragging{ opacity:0.55; background: var(--row-hover); transform:scale(1.04); box-shadow:0 6px 16px rgba(0,0,0,0.4); z-index:5; }
-  .tab{ touch-action: none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
-  .tabs-hint{ text-align:center; color:var(--muted-2); font-size:10.5px; margin: -12px 0 16px; }
  
   .panel{ display:none; }
   .panel.active{ display:block; animation: fadein .16s ease; }
@@ -330,7 +327,6 @@
   </div>
  
   <div class="tabs" id="tabs-container"></div>
-  <div class="tabs-hint" id="tabs-hint">segure e arraste uma aba pra reordenar</div>
  
   <!-- HOJE -->
   <div class="panel active" id="panel-hoje">
@@ -1235,29 +1231,15 @@ function copyRoteiroField(btn){
   }
 }
  
-// ---- tabs (com reordenação por arrastar) ----
+// ---- tabs ----
 const TAB_DEFS = [
-  { key:'hoje',       label:'Posts' },
   { key:'seguidores', label:'Seguidores' },
+  { key:'hoje',       label:'Posts' },
   { key:'grade',      label:'Grade' },
   { key:'evolucao',   label:'Evolução' },
   { key:'historico',  label:'Histórico' },
   { key:'roteiros',   label:'Roteiros' },
 ];
-const TAB_ORDER_KEY = 'central-postagens-tab-order-v1';
- 
-function getTabOrder(){
-  try{
-    const saved = JSON.parse(localStorage.getItem(TAB_ORDER_KEY) || 'null');
-    if(Array.isArray(saved) && saved.length === TAB_DEFS.length && TAB_DEFS.every(t => saved.includes(t.key))){
-      return saved;
-    }
-  }catch(e){}
-  return TAB_DEFS.map(t=>t.key);
-}
-function saveTabOrder(order){
-  try{ localStorage.setItem(TAB_ORDER_KEY, JSON.stringify(order)); }catch(e){}
-}
  
 function selectTab(key){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===key));
@@ -1266,88 +1248,15 @@ function selectTab(key){
   if(panel) panel.classList.add('active');
 }
  
-// arrastar (mouse e toque): segura um instante sem soltar/mover muito pra ativar o drag,
-// senão o clique normal e o scroll horizontal da barra continuam funcionando.
-const tabDrag = { el:null, active:false, moved:false, startX:0, startY:0, timer:null, pointerId:null, pendingEl:null };
- 
-function setupTabDragging(container){
-  container.querySelectorAll('.tab').forEach(btn=>{
-    btn.addEventListener('pointerdown', (e)=>{
-      if(e.button !== undefined && e.button !== 0) return; // só o botão principal do mouse
-      tabDrag.startX = e.clientX; tabDrag.startY = e.clientY; tabDrag.moved = false;
-      tabDrag.pointerId = e.pointerId;
-      // a captura do ponteiro precisa acontecer aqui, de forma síncrona dentro do próprio
-      // evento pointerdown — se ela for feita depois (ex: dentro do setTimeout), o navegador
-      // perde o rastro do ponteiro assim que ele desliza por cima de outra aba, e o "arrastar"
-      // simplesmente para de funcionar no meio do caminho.
-      try{ btn.setPointerCapture(e.pointerId); }catch(err){}
-      clearTimeout(tabDrag.timer);
-      if(e.pointerType === 'mouse'){
-        // no mouse não existe o conflito com "rolar a tela", então não precisa segurar
-        // parado — o próprio movimento do clique já ativa o arrastar, na hora.
-        tabDrag.pendingEl = btn;
-      }else{
-        tabDrag.timer = setTimeout(()=>{
-          tabDrag.active = true; tabDrag.el = btn;
-          btn.classList.add('dragging');
-          if(navigator.vibrate) navigator.vibrate(12);
-        }, 220);
-      }
-    });
-    btn.addEventListener('pointermove', (e)=>{
-      if(e.pointerId !== tabDrag.pointerId) return;
-      if(e.pointerType === 'mouse' && !tabDrag.active && tabDrag.pendingEl === btn){
-        if(Math.abs(e.clientX-tabDrag.startX) > 4 || Math.abs(e.clientY-tabDrag.startY) > 4){
-          tabDrag.active = true; tabDrag.el = btn;
-          btn.classList.add('dragging');
-        }
-      }
-      if(tabDrag.timer && !tabDrag.active){
-        if(Math.abs(e.clientX-tabDrag.startX) > 8 || Math.abs(e.clientY-tabDrag.startY) > 8){
-          clearTimeout(tabDrag.timer); tabDrag.timer = null;
-        }
-      }
-      if(!tabDrag.active || tabDrag.el !== btn) return;
-      e.preventDefault();
-      tabDrag.moved = true;
-      const items = [...container.querySelectorAll('.tab')];
-      const after = items.find(child=>{
-        if(child===btn) return false;
-        const box = child.getBoundingClientRect();
-        return e.clientX < box.left + box.width/2;
-      });
-      if(after) container.insertBefore(btn, after);
-      else container.appendChild(btn);
-    });
-    const finish = (e)=>{
-      if(e && e.pointerId !== tabDrag.pointerId) return;
-      clearTimeout(tabDrag.timer); tabDrag.timer = null;
-      if(tabDrag.active && tabDrag.el===btn){
-        btn.classList.remove('dragging');
-        const order = [...container.querySelectorAll('.tab')].map(el=>el.getAttribute('data-tab'));
-        saveTabOrder(order);
-      }
-      tabDrag.active = false; tabDrag.el = null; tabDrag.pointerId = null; tabDrag.pendingEl = null;
-    };
-    btn.addEventListener('pointerup', finish);
-    btn.addEventListener('pointercancel', finish);
-    btn.addEventListener('lostpointercapture', finish);
-    btn.addEventListener('click', (e)=>{
-      if(tabDrag.moved){ e.preventDefault(); e.stopPropagation(); tabDrag.moved = false; return; }
-      selectTab(btn.getAttribute('data-tab'));
-    });
-  });
-}
- 
 function renderTabsBar(){
   const container = document.getElementById('tabs-container');
-  const order = getTabOrder();
-  const current = document.querySelector('.tab.active')?.getAttribute('data-tab') || order[0];
-  container.innerHTML = order.map(key=>{
-    const def = TAB_DEFS.find(t=>t.key===key);
-    return `<button class="tab${key===current?' active':''}" data-tab="${key}" type="button">${def.label}</button>`;
+  const current = document.querySelector('.tab.active')?.getAttribute('data-tab') || TAB_DEFS[0].key;
+  container.innerHTML = TAB_DEFS.map(def=>{
+    return `<button class="tab${def.key===current?' active':''}" data-tab="${def.key}" type="button">${def.label}</button>`;
   }).join('');
-  setupTabDragging(container);
+  container.querySelectorAll('.tab').forEach(btn=>{
+    btn.addEventListener('click', ()=> selectTab(btn.getAttribute('data-tab')));
+  });
   selectTab(current);
 }
 renderTabsBar();
