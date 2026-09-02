@@ -314,6 +314,11 @@
   .rot-acc-count.publicado{ color:var(--good); background: rgba(53,211,153,0.14); }
   .rot-trash-item{ background: var(--row); border-radius:14px; padding:14px 16px; margin-bottom:8px; }
   .rot-trash-meta{ color:var(--muted); font-size:11px; font-family:var(--font-mono); margin-top:4px; }
+  .rot-draft-badge{
+    display:inline-flex; align-items:center; gap:4px; margin-top:6px; background: rgba(245,166,35,0.14); color:var(--amber);
+    border:none; border-radius:20px; padding:4px 10px; font-family:var(--font-mono); font-size:10.5px; cursor:pointer;
+  }
+  .rot-draft-badge:hover{ background: rgba(245,166,35,0.24); }
 </style>
 </head>
 <body>
@@ -709,6 +714,18 @@ function renderTopStats(){
   document.getElementById('stat-total').textContent = fmtNum(total);
 }
  
+function draftCountForAccount(accId){
+  return (state.roteiros||[]).filter(r=>r.channelId===accId && r.status!=='publicado' && !r.deleted).length;
+}
+
+function goToRoteirosForAccount(accId){
+  roteirosView = 'ativos';
+  roteirosAccOpen[accId] = true;
+  roteirosSectionState[accId+'|rascunho'] = true;
+  renderRoteiros();
+  selectTab('roteiros');
+}
+
 // ---- HOJE tab: stepper rows ----
 function renderHoje(){
   const date = currentWorkDate();
@@ -733,6 +750,7 @@ function renderHoje(){
             ${a.platform==='youtube' ? `<button class="icon-btn" data-yt-acc="${a.id}" title="Abrir YouTube Analytics">📊</button>` : ''}
           </div>
           <div class="rsub">${fmtNum(latestFollowers(a.id))} seguidores</div>
+          ${draftCountForAccount(a.id) > 0 ? `<button class="rot-draft-badge" data-goto-roteiros="${a.id}" type="button">📝 ${draftCountForAccount(a.id)} rascunho${draftCountForAccount(a.id)===1?'':'s'} pronto${draftCountForAccount(a.id)===1?'':'s'} →</button>` : ''}
         </div>
         <div class="stepper">
           <button class="step-btn" data-step="-1" data-acc="${a.id}">−</button>
@@ -759,6 +777,12 @@ function renderHoje(){
   });
   document.querySelectorAll('[data-add-platform]').forEach(el=>{
     el.addEventListener('click', ()=> openAddModal(el.getAttribute('data-add-platform')));
+  });
+  document.querySelectorAll('[data-goto-roteiros]').forEach(btn=>{
+    btn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      goToRoteirosForAccount(btn.getAttribute('data-goto-roteiros'));
+    });
   });
   document.querySelectorAll('[data-link-acc]').forEach(btn=>{
     btn.addEventListener('click', async (ev)=>{
