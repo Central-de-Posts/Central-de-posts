@@ -294,6 +294,26 @@
   .rot-section-title{ font-family:var(--font-display); font-weight:700; font-size:14.5px; color:var(--text); flex:1; }
   .rot-section-count{ font-family:var(--font-mono); font-size:11.5px; color:var(--muted); background: var(--row); padding:2px 9px; border-radius:20px; flex-shrink:0; }
   .rot-section-body{ padding-top:12px; }
+  .rot-created{ color:var(--muted-2); font-size:10.5px; font-family:var(--font-mono); margin-top:3px; }
+
+  /* roteiros: abas ativos/lixeira + contas */
+  .rot-view-tabs{ display:flex; gap:8px; margin-bottom:16px; }
+  .rot-view-tab{
+    flex:1; background: var(--surface); border:1px solid var(--line); color:var(--muted);
+    border-radius:12px; padding:10px; font-family:var(--font-body); font-weight:600; font-size:12.5px;
+    cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .rot-view-tab.active{ color: var(--text); border-color: var(--good); background: rgba(53,211,153,0.08); }
+  .rot-trash-badge{
+    font-family:var(--font-mono); font-size:10px; color:var(--bad); background: rgba(255,90,90,0.14);
+    padding:1px 7px; border-radius:20px;
+  }
+  .rot-acc-counts{ display:flex; gap:8px; margin-top:3px; flex-wrap:wrap; }
+  .rot-acc-count{ font-family:var(--font-mono); font-size:10.5px; padding:1px 8px; border-radius:20px; }
+  .rot-acc-count.rascunho{ color:var(--amber); background: rgba(245,166,35,0.14); }
+  .rot-acc-count.publicado{ color:var(--good); background: rgba(53,211,153,0.14); }
+  .rot-trash-item{ background: var(--row); border-radius:14px; padding:14px 16px; margin-bottom:8px; }
+  .rot-trash-meta{ color:var(--muted); font-size:11px; font-family:var(--font-mono); margin-top:4px; }
 </style>
 </head>
 <body>
@@ -367,8 +387,12 @@
  
   <!-- ROTEIROS -->
   <div class="panel" id="panel-roteiros">
-    <p class="section-sub">Título, legenda, links de vídeo pra edição e canal de publicação — organizado por dia.</p>
+    <p class="section-sub">Título, legenda, links de vídeo pra edição e canal de publicação — organizado por conta.</p>
     <button class="rot-add-btn" id="rot-add-btn">+ Novo roteiro</button>
+    <div class="rot-view-tabs" id="rot-view-tabs">
+      <button class="rot-view-tab active" data-rot-view="ativos" type="button">Por conta</button>
+      <button class="rot-view-tab" data-rot-view="lixeira" type="button">🗑 Lixeira <span class="rot-trash-badge" id="rot-trash-count" style="display:none;"></span></button>
+    </div>
     <div id="roteiros-body"></div>
   </div>
  
@@ -1112,16 +1136,48 @@ function toggleRoteiroStatus(id){
 }
 function deleteRoteiro(id){
   const r = state.roteiros.find(x=>x.id===id);
-  if(r && r.postCounted){
+  if(!r) return;
+  if(r.postCounted){
     decrementPostCount(r.countedDate, r.countedChannelId);
+    r.postCounted = false;
+    r.countedDate = null;
+    r.countedChannelId = null;
   }
-  state.roteiros = state.roteiros.filter(x=>x.id!==id);
+  r.deleted = true;
+  r.deletedAt = new Date().toISOString();
   saveData(true);
+  showToast('Movido pra lixeira');
   renderAll();
 }
- 
-// estado (só de tela, não precisa salvar) de quais seções estão abertas
+
+function restoreRoteiro(id){
+  const r = state.roteiros.find(x=>x.id===id);
+  if(!r) return;
+  r.deleted = false;
+  r.deletedAt = null;
+  if(r.status === 'publicado' && !r.postCounted){
+    incrementPostCount(r.date, r.channelId);
+    r.postCounted = true;
+    r.countedDate = r.date;
+    r.countedChannelId = r.channelId;
+  }
+  saveData(true);
+  showToast('Roteiro restaurado');
+  renderAll();
+}
+
+function permanentlyDeleteRoteiro(id){
+  if(!confirm('Apagar esse roteiro de vez? Não dá pra desfazer.')) return;
+  state.roteiros = state.roteiros.filter(x=>x.id!==id);
+  saveData(true);
+  showToast('Apagado definitivamente');
+  renderAll();
+}
+
+// estado (só de tela, não precisa salvar) de quais seções/contas estão abertas
 let roteirosSectionState = { rascunho: true, publicado: false };
+let roteirosView = 'ativos'; // 'ativos' | 'lixeira'
+let roteirosAccOpen = {};
  
 function renderRoteiroItemsHtml(items){
   if(!items.length) return '<p class="empty-state" style="padding:6px 4px 4px;">Nada aqui ainda.</p>';
@@ -1129,71 +1185,214 @@ function renderRoteiroItemsHtml(items){
   let html = '';
   dates.forEach(date=>{
     html += `<div class="rot-day-head">${fmtDate(date)}<span class="d" style="color:var(--muted); font-weight:400; font-family:var(--font-mono); font-size:11px; margin-left:6px;">${date}</span></div>`;
-    const dayRoteiros = items.filter(r=>r.date===date);
-    const channelIds = [...new Set(dayRoteiros.map(r=>r.channelId))];
-    channelIds.forEach(chId=>{
-      const acc = state.accounts.find(a=>a.id===chId);
-      const p = acc ? PLATFORMS[acc.platform] : null;
-      html += `<div class="rot-channel-label">${p ? `<span class="pill" data-platform="${acc.platform}" style="font-size:9px; padding:3px 8px;">${p.label}</span>` : ''} ${acc ? escapeHtml(acc.name) : 'Conta removida'}</div>`;
-      dayRoteiros.filter(r=>r.channelId===chId).forEach(r=>{
-        const linksHtml = (r.videoLinks||[]).map(l=>`<a href="${escapeHtml(l)}" target="_blank" rel="noopener">${escapeHtml(l)}</a>`).join('');
-        html += `<div class="rot-card">
-          <div class="rot-card-top">
+    items.filter(r=>r.date===date).forEach(r=>{
+      const linksHtml = (r.videoLinks||[]).map(l=>`<a href="${escapeHtml(l)}" target="_blank" rel="noopener">${escapeHtml(l)}</a>`).join('');
+      const createdDate = r.createdAt ? r.createdAt.slice(0,10) : null;
+      html += `<div class="rot-card">
+        <div class="rot-card-top">
+          <div>
             <div class="rot-title">${escapeHtml(r.title)}</div>
-            <span class="rot-status ${r.status}">${r.status === 'publicado' ? 'Publicado' : 'Rascunho'}</span>
+            ${createdDate ? `<div class="rot-created">Rascunho criado em ${fmtDate(createdDate)}</div>` : ''}
           </div>
-          ${r.script ? `<div class="rot-block">
-            <div class="rot-block-head"><span class="rot-block-label">Roteiro</span><button class="rot-copy-btn" data-copy-id="${r.id}" data-copy-field="script">📋 Copiar</button></div>
-            <div class="rot-block-text">${escapeHtml(r.script)}</div>
-          </div>` : ''}
-          ${r.caption ? `<div class="rot-block">
-            <div class="rot-block-head"><span class="rot-block-label">Legenda</span><button class="rot-copy-btn" data-copy-id="${r.id}" data-copy-field="caption">📋 Copiar</button></div>
-            <div class="rot-block-text">${escapeHtml(r.caption)}</div>
-          </div>` : ''}
-          ${linksHtml ? `<div class="rot-block">
-            <div class="rot-block-head"><span class="rot-block-label">Links</span><button class="rot-copy-btn" data-copy-id="${r.id}" data-copy-field="links">📋 Copiar</button></div>
-            <div class="rot-links">${linksHtml}</div>
-          </div>` : ''}
-          <div class="rot-card-actions">
-            <button class="btn secondary small" data-rot-edit="${r.id}">Editar</button>
-            <button class="btn small" data-rot-toggle="${r.id}">${r.status==='publicado' ? 'Voltar p/ rascunho' : 'Marcar publicado'}</button>
-            <button class="del-x" data-rot-del="${r.id}">✕</button>
-          </div>
-        </div>`;
-      });
+          <span class="rot-status ${r.status}">${r.status === 'publicado' ? 'Publicado' : 'Rascunho'}</span>
+        </div>
+        ${r.script ? `<div class="rot-block">
+          <div class="rot-block-head"><span class="rot-block-label">Roteiro</span><button class="rot-copy-btn" data-copy-id="${r.id}" data-copy-field="script">📋 Copiar</button></div>
+          <div class="rot-block-text">${escapeHtml(r.script)}</div>
+        </div>` : ''}
+        ${r.caption ? `<div class="rot-block">
+          <div class="rot-block-head"><span class="rot-block-label">Legenda</span><button class="rot-copy-btn" data-copy-id="${r.id}" data-copy-field="caption">📋 Copiar</button></div>
+          <div class="rot-block-text">${escapeHtml(r.caption)}</div>
+        </div>` : ''}
+        ${linksHtml ? `<div class="rot-block">
+          <div class="rot-block-head"><span class="rot-block-label">Links</span><button class="rot-copy-btn" data-copy-id="${r.id}" data-copy-field="links">📋 Copiar</button></div>
+          <div class="rot-links">${linksHtml}</div>
+        </div>` : ''}
+        <div class="rot-card-actions">
+          <button class="btn secondary small" data-rot-edit="${r.id}">Editar</button>
+          <button class="btn small" data-rot-toggle="${r.id}">${r.status==='publicado' ? 'Voltar p/ rascunho' : 'Marcar publicado'}</button>
+          <button class="del-x" data-rot-del="${r.id}">✕</button>
+        </div>
+      </div>`;
     });
   });
   return html;
 }
- 
-function renderRoteiros(){
-  const body = document.getElementById('roteiros-body');
-  if(!state.roteiros || !state.roteiros.length){
-    body.innerHTML = '<p class="empty-state">Nenhum roteiro criado ainda.</p>';
-    return;
-  }
-  const groups = [
-    { key:'rascunho',  label:'Rascunhos',  items: state.roteiros.filter(r=>r.status!=='publicado') },
-    { key:'publicado', label:'Publicados', items: state.roteiros.filter(r=>r.status==='publicado') },
-  ];
+
+function renderRoteiroTrashItemsHtml(items){
+  if(!items.length) return '<p class="empty-state" style="padding:6px 4px 4px;">Lixeira vazia por aqui.</p>';
+  const sorted = [...items].sort((a,b)=> (b.deletedAt||'').localeCompare(a.deletedAt||''));
   let html = '';
-  groups.forEach(group=>{
-    const expanded = !!roteirosSectionState[group.key];
-    html += `<div class="rot-section">
-      <button class="rot-section-head" data-section-toggle="${group.key}" type="button">
-        <span class="rot-section-chevron">${expanded ? '▾' : '▸'}</span>
-        <span class="rot-section-title">${group.label}</span>
-        <span class="rot-section-count">${group.items.length}</span>
-      </button>
-      <div class="rot-section-body" style="display:${expanded ? 'block' : 'none'}">
-        ${expanded ? renderRoteiroItemsHtml(group.items) : ''}
+  sorted.forEach(r=>{
+    const linksHtml = (r.videoLinks||[]).map(l=>`<a href="${escapeHtml(l)}" target="_blank" rel="noopener">${escapeHtml(l)}</a>`).join('');
+    html += `<div class="rot-trash-item">
+      <div class="rot-card-top">
+        <div class="rot-title">${escapeHtml(r.title)}</div>
+        <span class="rot-status ${r.status}">${r.status === 'publicado' ? 'Publicado' : 'Rascunho'}</span>
+      </div>
+      <div class="rot-trash-meta">Apagado em ${r.deletedAt ? fmtDate(r.deletedAt.slice(0,10)) : '—'} · agendado p/ ${fmtDate(r.date)}</div>
+      ${linksHtml ? `<div class="rot-block">
+        <div class="rot-block-head"><span class="rot-block-label">Links</span></div>
+        <div class="rot-links">${linksHtml}</div>
+      </div>` : ''}
+      <div class="rot-card-actions">
+        <button class="btn small" data-rot-restore="${r.id}">↺ Restaurar</button>
+        <button class="del-x" data-rot-perm-del="${r.id}">Apagar de vez</button>
       </div>
     </div>`;
   });
+  return html;
+}
+
+function renderRoteirosByAccount(items){
+  // agrupa por conta (na ordem das plataformas), depois em rascunhos/publicados dentro de cada conta
+  let html = '';
+  const seenAccountIds = new Set();
+  Object.keys(PLATFORMS).forEach(pk=>{
+    const p = PLATFORMS[pk];
+    const accs = state.accounts.filter(a=>a.platform===pk);
+    accs.forEach(acc=>{
+      const accItems = items.filter(r=>r.channelId===acc.id);
+      if(!accItems.length) return;
+      seenAccountIds.add(acc.id);
+      html += renderRoteiroAccountBlock(acc, p, accItems);
+    });
+  });
+  // roteiros cuja conta foi removida
+  const orphanItems = items.filter(r=> !state.accounts.find(a=>a.id===r.channelId));
+  if(orphanItems.length){
+    html += renderRoteiroAccountBlock(null, null, orphanItems, 'sem-conta');
+  }
+  return html || '<p class="empty-state">Nenhum roteiro por aqui ainda.</p>';
+}
+
+function renderRoteiroAccountBlock(acc, p, items, forcedKey){
+  const accId = forcedKey || acc.id;
+  const rascunhoCount = items.filter(r=>r.status!=='publicado').length;
+  const publicadoCount = items.filter(r=>r.status==='publicado').length;
+  const expanded = !!roteirosAccOpen[accId];
+  const name = acc ? escapeHtml(acc.name) : 'Conta removida';
+  const pillHtml = p ? `<span class="pill" data-platform="${acc.platform}" style="font-size:9px; padding:3px 8px; flex-shrink:0;">${p.label}</span>` : '';
+  const subExpanded = roteirosSectionState;
+  return `<div class="evo-item">
+    <div class="row evo-toggle" data-rot-acc-toggle="${accId}" style="cursor:pointer;">
+      <div class="row-left">
+        <div class="rname" style="display:flex; align-items:center; gap:6px;">${pillHtml} ${name}</div>
+        <div class="rot-acc-counts">
+          <span class="rot-acc-count rascunho">${rascunhoCount} rascunho${rascunhoCount===1?'':'s'}</span>
+          <span class="rot-acc-count publicado">${publicadoCount} publicado${publicadoCount===1?'':'s'}</span>
+        </div>
+      </div>
+      <span class="evo-chevron">${expanded ? '▾' : '▸'}</span>
+    </div>
+    <div class="evo-expand" style="display:${expanded ? 'block' : 'none'}">
+      <div class="rot-section">
+        <button class="rot-section-head" data-section-toggle="${accId}|rascunho" type="button">
+          <span class="rot-section-chevron">${subExpanded[accId+'|rascunho'] ? '▾' : '▸'}</span>
+          <span class="rot-section-title">Rascunhos</span>
+          <span class="rot-section-count">${rascunhoCount}</span>
+        </button>
+        <div class="rot-section-body" style="display:${subExpanded[accId+'|rascunho'] ? 'block' : 'none'}">
+          ${subExpanded[accId+'|rascunho'] ? renderRoteiroItemsHtml(items.filter(r=>r.status!=='publicado')) : ''}
+        </div>
+      </div>
+      <div class="rot-section">
+        <button class="rot-section-head" data-section-toggle="${accId}|publicado" type="button">
+          <span class="rot-section-chevron">${subExpanded[accId+'|publicado'] ? '▾' : '▸'}</span>
+          <span class="rot-section-title">Publicados</span>
+          <span class="rot-section-count">${publicadoCount}</span>
+        </button>
+        <div class="rot-section-body" style="display:${subExpanded[accId+'|publicado'] ? 'block' : 'none'}">
+          ${subExpanded[accId+'|publicado'] ? renderRoteiroItemsHtml(items.filter(r=>r.status==='publicado')) : ''}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderRoteiroTrashByAccount(items){
+  let html = '';
+  Object.keys(PLATFORMS).forEach(pk=>{
+    const p = PLATFORMS[pk];
+    const accs = state.accounts.filter(a=>a.platform===pk);
+    accs.forEach(acc=>{
+      const accItems = items.filter(r=>r.channelId===acc.id);
+      if(!accItems.length) return;
+      const accId = 'trash-'+acc.id;
+      const expanded = !!roteirosAccOpen[accId];
+      html += `<div class="evo-item">
+        <div class="row evo-toggle" data-rot-acc-toggle="${accId}" style="cursor:pointer;">
+          <div class="row-left">
+            <div class="rname" style="display:flex; align-items:center; gap:6px;">
+              <span class="pill" data-platform="${acc.platform}" style="font-size:9px; padding:3px 8px; flex-shrink:0;">${p.label}</span> ${escapeHtml(acc.name)}
+            </div>
+            <div class="rsub">${accItems.length} na lixeira</div>
+          </div>
+          <span class="evo-chevron">${expanded ? '▾' : '▸'}</span>
+        </div>
+        <div class="evo-expand" style="display:${expanded ? 'block' : 'none'}">
+          ${expanded ? renderRoteiroTrashItemsHtml(accItems) : ''}
+        </div>
+      </div>`;
+    });
+  });
+  const orphanItems = items.filter(r=> !state.accounts.find(a=>a.id===r.channelId));
+  if(orphanItems.length){
+    const accId = 'trash-sem-conta';
+    const expanded = !!roteirosAccOpen[accId];
+    html += `<div class="evo-item">
+      <div class="row evo-toggle" data-rot-acc-toggle="${accId}" style="cursor:pointer;">
+        <div class="row-left">
+          <div class="rname">Conta removida</div>
+          <div class="rsub">${orphanItems.length} na lixeira</div>
+        </div>
+        <span class="evo-chevron">${expanded ? '▾' : '▸'}</span>
+      </div>
+      <div class="evo-expand" style="display:${expanded ? 'block' : 'none'}">
+        ${expanded ? renderRoteiroTrashItemsHtml(orphanItems) : ''}
+      </div>
+    </div>`;
+  }
+  return html || '<p class="empty-state">Lixeira vazia por aqui.</p>';
+}
+
+function renderRoteiros(){
+  const body = document.getElementById('roteiros-body');
+  if(!state.roteiros) state.roteiros = [];
+  const activeItems = state.roteiros.filter(r=>!r.deleted);
+  const trashItems = state.roteiros.filter(r=>r.deleted);
+
+  document.querySelectorAll('.rot-view-tab').forEach(tab=>{
+    tab.classList.toggle('active', tab.getAttribute('data-rot-view')===roteirosView);
+  });
+  const trashBadge = document.getElementById('rot-trash-count');
+  if(trashBadge){
+    trashBadge.textContent = trashItems.length;
+    trashBadge.style.display = trashItems.length ? 'inline-block' : 'none';
+  }
+
+  let html = '';
+  if(roteirosView === 'lixeira'){
+    html = renderRoteiroTrashByAccount(trashItems);
+  }else{
+    if(!activeItems.length){
+      html = '<p class="empty-state">Nenhum roteiro criado ainda.</p>';
+    }else{
+      html = renderRoteirosByAccount(activeItems);
+    }
+  }
   body.innerHTML = html;
- 
+
+  body.querySelectorAll('[data-rot-acc-toggle]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = el.getAttribute('data-rot-acc-toggle');
+      roteirosAccOpen[id] = !roteirosAccOpen[id];
+      renderRoteiros();
+    });
+  });
   body.querySelectorAll('[data-section-toggle]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+    btn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
       const key = btn.getAttribute('data-section-toggle');
       roteirosSectionState[key] = !roteirosSectionState[key];
       renderRoteiros();
@@ -1202,8 +1401,17 @@ function renderRoteiros(){
   body.querySelectorAll('[data-rot-edit]').forEach(btn=> btn.addEventListener('click', ()=> openRotModal(state.roteiros.find(r=>r.id===btn.getAttribute('data-rot-edit')))));
   body.querySelectorAll('[data-rot-toggle]').forEach(btn=> btn.addEventListener('click', ()=> toggleRoteiroStatus(btn.getAttribute('data-rot-toggle'))));
   body.querySelectorAll('[data-rot-del]').forEach(btn=> btn.addEventListener('click', ()=> deleteRoteiro(btn.getAttribute('data-rot-del'))));
+  body.querySelectorAll('[data-rot-restore]').forEach(btn=> btn.addEventListener('click', ()=> restoreRoteiro(btn.getAttribute('data-rot-restore'))));
+  body.querySelectorAll('[data-rot-perm-del]').forEach(btn=> btn.addEventListener('click', ()=> permanentlyDeleteRoteiro(btn.getAttribute('data-rot-perm-del'))));
   body.querySelectorAll('[data-copy-field]').forEach(btn=> btn.addEventListener('click', ()=> copyRoteiroField(btn)));
 }
+
+document.getElementById('rot-view-tabs').addEventListener('click', (ev)=>{
+  const tab = ev.target.closest('[data-rot-view]');
+  if(!tab) return;
+  roteirosView = tab.getAttribute('data-rot-view');
+  renderRoteiros();
+});
  
 function copyRoteiroField(btn){
   const r = state.roteiros.find(x=>x.id===btn.getAttribute('data-copy-id'));
