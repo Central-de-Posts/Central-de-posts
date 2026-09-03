@@ -319,6 +319,34 @@
     border:none; border-radius:20px; padding:4px 10px; font-family:var(--font-mono); font-size:10.5px; cursor:pointer;
   }
   .rot-draft-badge:hover{ background: rgba(245,166,35,0.24); }
+
+  .info-btn{
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+    width:18px; height:18px; border-radius:50%; border:1px solid var(--line); background: var(--row);
+    color:var(--muted); font-size:11px; font-family:var(--font-body); font-style:italic; font-weight:700;
+    cursor:pointer; line-height:1; padding:0;
+  }
+  .info-btn.has-note{ border-color: var(--good); color: var(--good); background: rgba(53,211,153,0.12); }
+  .info-btn:hover{ opacity:0.85; }
+
+  .rot-channels-list{
+    max-height:230px; overflow-y:auto; border:1px solid var(--line); border-radius:12px;
+    padding:8px 12px; background: var(--row);
+  }
+  .rot-ch-group-label{
+    font-family:var(--font-mono); font-size:10px; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--muted); margin:10px 0 4px; display:flex; align-items:center; gap:6px;
+  }
+  .rot-ch-group-label:first-child{ margin-top:2px; }
+  .rot-ch-check{
+    display:flex; align-items:center; gap:9px; padding:7px 2px; font-size:13.5px; cursor:pointer;
+  }
+  .rot-ch-check input[type="checkbox"]{ width:16px; height:16px; flex-shrink:0; accent-color: var(--good); }
+  .rot-ch-check.locked{ opacity:0.65; cursor:not-allowed; }
+  .rot-ch-current-tag{
+    font-family:var(--font-mono); font-size:9.5px; color:var(--muted); background: var(--surface);
+    padding:1px 7px; border-radius:20px;
+  }
 </style>
 </head>
 <body>
@@ -441,13 +469,27 @@
     <label>Links dos vídeos (edição)</label>
     <textarea id="rot-links" placeholder="Um link por linha"></textarea>
     <div class="field-hint">Links de apoio pra quem for editar o vídeo (ex: bruto, referências, ferramentas). Não vão pro post.</div>
-    <label>Canal</label>
-    <select id="rot-channel"></select>
+    <label>Contas <span style="font-weight:400; color:var(--muted); text-transform:none; letter-spacing:0;">(marque quantas quiser — mesmo roteiro em mais de uma conta)</span></label>
+    <div id="rot-channels-list" class="rot-channels-list"></div>
+    <div class="field-hint">O texto (roteiro/legenda/links) fica igual em todas as contas marcadas. Rascunho/publicado é controlado separado em cada uma.</div>
     <label>Data de publicação</label>
     <input type="date" id="rot-date">
     <div class="modal-actions">
       <button class="btn secondary small" id="rot-cancel">Cancelar</button>
       <button class="btn small" id="rot-confirm">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="info-modal">
+  <div class="modal">
+    <h3 id="info-modal-title">Sobre essa conta</h3>
+    <label>Nicho / assunto dessa conta</label>
+    <textarea id="info-note-text" placeholder="ex: cortes de podcast sobre finanças, foco em investimento iniciante" style="min-height:110px;"></textarea>
+    <div class="field-hint">Só pra você lembrar rápido do que fala essa conta. Não aparece em nenhuma publicação.</div>
+    <div class="modal-actions">
+      <button class="btn secondary small" id="info-cancel">Fechar</button>
+      <button class="btn small" id="info-confirm">Salvar</button>
     </div>
   </div>
 </div>
@@ -577,6 +619,7 @@ function showToast(msg, isError){
   setTimeout(()=> t.classList.remove('show'), 1300);
 }
 function escapeHtml(s){ return s.replace(/[&<>"']/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function infoTooltip(note){ return note ? escapeHtml(note) : 'Clique pra anotar o nicho dessa conta'; }
 function fmtNum(n){ return new Intl.NumberFormat('pt-BR').format(n); }
 function fmtDate(d){ const [y,m,day] = d.split('-'); return `${day}/${m}`; }
 function hexToRgba(hex, alpha){
@@ -718,6 +761,26 @@ function draftCountForAccount(accId){
   return (state.roteiros||[]).filter(r=>r.channelId===accId && r.status!=='publicado' && !r.deleted).length;
 }
 
+let infoModalAccId = null;
+function openInfoModal(accId){
+  const acc = state.accounts.find(a=>a.id===accId);
+  if(!acc) return;
+  infoModalAccId = accId;
+  document.getElementById('info-modal-title').textContent = 'Sobre "' + acc.name + '"';
+  document.getElementById('info-note-text').value = acc.note || '';
+  document.getElementById('info-modal').classList.add('show');
+}
+document.getElementById('info-cancel').addEventListener('click', ()=> document.getElementById('info-modal').classList.remove('show'));
+document.getElementById('info-confirm').addEventListener('click', async ()=>{
+  const acc = state.accounts.find(a=>a.id===infoModalAccId);
+  if(acc){
+    acc.note = document.getElementById('info-note-text').value.trim();
+    await saveData(true);
+    renderAll();
+  }
+  document.getElementById('info-modal').classList.remove('show');
+});
+
 function goToRoteirosForAccount(accId){
   roteirosView = 'ativos';
   roteirosAccOpen[accId] = true;
@@ -746,6 +809,7 @@ function renderHoje(){
         <div class="row-left">
           <div class="rname-wrap">
             ${a.link ? `<a href="${escapeHtml(a.link)}" target="_blank" rel="noopener" class="rname">${escapeHtml(a.name)}</a>` : `<span class="rname">${escapeHtml(a.name)}</span>`}
+            <button class="info-btn${a.note ? ' has-note' : ''}" data-info-acc="${a.id}" title="${infoTooltip(a.note)}">i</button>
             <button class="icon-btn" data-link-acc="${a.id}" title="Colar link da conta">🔗</button>
             ${a.platform==='youtube' ? `<button class="icon-btn" data-yt-acc="${a.id}" title="Abrir YouTube Analytics">📊</button>` : ''}
           </div>
@@ -782,6 +846,12 @@ function renderHoje(){
     btn.addEventListener('click', (ev)=>{
       ev.stopPropagation();
       goToRoteirosForAccount(btn.getAttribute('data-goto-roteiros'));
+    });
+  });
+  document.querySelectorAll('[data-info-acc]').forEach(btn=>{
+    btn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      openInfoModal(btn.getAttribute('data-info-acc'));
     });
   });
   document.querySelectorAll('[data-link-acc]').forEach(btn=>{
@@ -838,7 +908,10 @@ function renderSeguidores(){
       const deltaLabel = delta>0 ? ('+'+fmtNum(delta)) : (delta<0 ? fmtNum(delta) : '—');
       html += `<div class="row">
         <div class="row-left">
-          <div class="rname">${escapeHtml(a.name)}</div>
+          <div class="rname-wrap">
+            <span class="rname">${escapeHtml(a.name)}</span>
+            <button class="info-btn${a.note ? ' has-note' : ''}" data-info-acc="${a.id}" title="${infoTooltip(a.note)}">i</button>
+          </div>
           <div class="rsub">${totalPosts(a.id)} posts no total</div>
         </div>
         <div class="fw-edit">
@@ -850,6 +923,12 @@ function renderSeguidores(){
   });
   document.getElementById('seguidores-body').innerHTML = html;
  
+  document.querySelectorAll('[data-info-acc]').forEach(btn=>{
+    btn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      openInfoModal(btn.getAttribute('data-info-acc'));
+    });
+  });
   document.querySelectorAll('[data-fw-acc]').forEach(inp=>{
     inp.addEventListener('keydown', (ev)=>{ if(ev.key==='Enter'){ inp.blur(); } });
     inp.addEventListener('change', async ()=>{
@@ -1073,31 +1152,54 @@ function renderHistorico(){
  
 // ---- ROTEIROS ----
 let rotEditingId = null;
- 
-function populateRotChannelSelect(){
-  const sel = document.getElementById('rot-channel');
+let rotLockedChannelId = null; // canal do item sendo editado — não pode ser desmarcado
+
+function genRotId(){
+  return 'rot-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+}
+
+function groupIdOf(r){
+  return r.groupId || r.id;
+}
+
+function populateRotChannelsList(checkedIds){
+  const box = document.getElementById('rot-channels-list');
   let html = '';
+  let any = false;
   Object.keys(PLATFORMS).forEach(pk=>{
     const p = PLATFORMS[pk];
     const accs = state.accounts.filter(a=>a.platform===pk);
     if(!accs.length) return;
-    html += `<optgroup label="${p.label}">`;
-    accs.forEach(a=> html += `<option value="${a.id}">${escapeHtml(a.name)}</option>`);
-    html += '</optgroup>';
+    any = true;
+    html += `<div class="rot-ch-group-label"><span class="pill" data-platform="${pk}" style="font-size:9px; padding:2px 7px;">${p.label}</span></div>`;
+    accs.forEach(a=>{
+      const locked = a.id === rotLockedChannelId;
+      const checked = checkedIds.includes(a.id);
+      html += `<label class="rot-ch-check${locked ? ' locked' : ''}">
+        <input type="checkbox" value="${a.id}" ${checked ? 'checked' : ''} ${locked ? 'disabled' : ''}>
+        ${escapeHtml(a.name)}
+        ${locked ? '<span class="rot-ch-current-tag">atual</span>' : ''}
+      </label>`;
+    });
   });
-  sel.innerHTML = html || '<option value="">Nenhuma conta cadastrada ainda</option>';
+  box.innerHTML = any ? html : '<p class="empty-state" style="padding:6px 4px;">Nenhuma conta cadastrada ainda.</p>';
 }
- 
+
 function openRotModal(existing){
-  populateRotChannelSelect();
   rotEditingId = existing ? existing.id : null;
+  rotLockedChannelId = existing ? existing.channelId : null;
+  let checkedIds = [];
+  if(existing){
+    const gid = groupIdOf(existing);
+    checkedIds = state.roteiros.filter(r=>!r.deleted && groupIdOf(r)===gid).map(r=>r.channelId);
+  }
+  populateRotChannelsList(checkedIds);
   document.getElementById('rot-modal-title').textContent = existing ? 'Editar roteiro' : 'Novo roteiro';
   document.getElementById('rot-title').value = existing ? existing.title : '';
   document.getElementById('rot-script').value = existing ? (existing.script || '') : '';
   document.getElementById('rot-caption').value = existing ? existing.caption : '';
   document.getElementById('rot-links').value = existing ? (existing.videoLinks||[]).join('\n') : '';
   document.getElementById('rot-date').value = existing ? existing.date : TODAY;
-  if(existing) document.getElementById('rot-channel').value = existing.channelId;
   document.getElementById('rot-modal').classList.add('show');
 }
 document.getElementById('rot-add-btn').addEventListener('click', ()=> openRotModal(null));
@@ -1108,24 +1210,56 @@ document.getElementById('rot-confirm').addEventListener('click', async ()=>{
   const script = document.getElementById('rot-script').value.trim();
   const caption = document.getElementById('rot-caption').value.trim();
   const links = document.getElementById('rot-links').value.split('\n').map(l=>l.trim()).filter(Boolean);
-  const channelId = document.getElementById('rot-channel').value;
   const date = document.getElementById('rot-date').value || TODAY;
+  const selectedChannels = Array.from(document.querySelectorAll('#rot-channels-list input[type="checkbox"]:checked')).map(cb=>cb.value);
   if(!title){ alert('Dê um título pro roteiro.'); return; }
-  if(!channelId){ alert('Cadastre uma conta antes de criar um roteiro (aba Hoje).'); return; }
- 
+  if(!selectedChannels.length){ alert('Marque pelo menos uma conta pra esse roteiro.'); return; }
+
+  const shared = { title, script, caption, videoLinks: links, date };
+
   if(rotEditingId){
-    const r = state.roteiros.find(x=>x.id===rotEditingId);
-    if(r.postCounted && (r.countedDate !== date || r.countedChannelId !== channelId)){
-      decrementPostCount(r.countedDate, r.countedChannelId);
-      incrementPostCount(date, channelId);
-      r.countedDate = date;
-      r.countedChannelId = channelId;
-    }
-    Object.assign(r, { title, script, caption, videoLinks: links, channelId, date });
+    const existing = state.roteiros.find(x=>x.id===rotEditingId);
+    const gid = groupIdOf(existing);
+    existing.groupId = gid;
+    const members = state.roteiros.filter(r=>!r.deleted && groupIdOf(r)===gid);
+    const currentChannelIds = members.map(m=>m.channelId);
+
+    // remove contas desmarcadas (menos a do item que está sendo editado, travada)
+    members.forEach(m=>{
+      if(m.channelId===existing.channelId) return;
+      if(!selectedChannels.includes(m.channelId)){
+        if(m.postCounted) decrementPostCount(m.countedDate, m.countedChannelId);
+        state.roteiros = state.roteiros.filter(x=>x.id!==m.id);
+      }
+    });
+
+    // atualiza conteúdo compartilhado nos membros que continuam
+    state.roteiros.filter(r=>!r.deleted && groupIdOf(r)===gid).forEach(m=>{
+      if(m.postCounted && m.countedDate !== date){
+        decrementPostCount(m.countedDate, m.countedChannelId);
+        incrementPostCount(date, m.channelId);
+        m.countedDate = date;
+        m.countedChannelId = m.channelId;
+      }
+      Object.assign(m, shared);
+    });
+
+    // adiciona contas novas marcadas
+    selectedChannels.filter(chId=> !currentChannelIds.includes(chId)).forEach(chId=>{
+      state.roteiros.push({
+        id: genRotId(), ...shared, channelId: chId, groupId: gid,
+        status: 'rascunho', createdAt: new Date().toISOString(),
+        postCounted:false, countedDate:null, countedChannelId:null, deleted:false
+      });
+    });
   }else{
-    state.roteiros.push({
-      id: 'rot-' + Date.now(), title, script, caption, videoLinks: links, channelId, date,
-      status: 'rascunho', createdAt: new Date().toISOString()
+    const gid = genRotId();
+    selectedChannels.forEach(chId=>{
+      state.roteiros.push({
+        id: genRotId(), ...shared, channelId: chId, groupId: gid,
+        status: 'rascunho', createdAt: new Date().toISOString(),
+        postCounted:false, countedDate:null, countedChannelId:null, deleted:false
+      });
     });
   }
   await saveData(true);
@@ -1212,11 +1346,18 @@ function renderRoteiroItemsHtml(items){
     items.filter(r=>r.date===date).forEach(r=>{
       const linksHtml = (r.videoLinks||[]).map(l=>`<a href="${escapeHtml(l)}" target="_blank" rel="noopener">${escapeHtml(l)}</a>`).join('');
       const createdDate = r.createdAt ? r.createdAt.slice(0,10) : null;
+      const gid = groupIdOf(r);
+      const siblings = state.roteiros.filter(x=>!x.deleted && groupIdOf(x)===gid && x.id!==r.id);
+      const siblingNames = siblings.map(s=>{
+        const acc = state.accounts.find(a=>a.id===s.channelId);
+        return acc ? acc.name : 'conta removida';
+      }).join(', ');
       html += `<div class="rot-card">
         <div class="rot-card-top">
           <div>
             <div class="rot-title">${escapeHtml(r.title)}</div>
             ${createdDate ? `<div class="rot-created">Rascunho criado em ${fmtDate(createdDate)}</div>` : ''}
+            ${siblingNames ? `<div class="rot-created">🔗 mesmo roteiro em: ${escapeHtml(siblingNames)}</div>` : ''}
           </div>
           <span class="rot-status ${r.status}">${r.status === 'publicado' ? 'Publicado' : 'Rascunho'}</span>
         </div>
@@ -1301,7 +1442,7 @@ function renderRoteiroAccountBlock(acc, p, items, forcedKey){
   return `<div class="evo-item">
     <div class="row evo-toggle" data-rot-acc-toggle="${accId}" style="cursor:pointer;">
       <div class="row-left">
-        <div class="rname" style="display:flex; align-items:center; gap:6px;">${pillHtml} ${name}</div>
+        <div class="rname" style="display:flex; align-items:center; gap:6px;">${pillHtml} ${name} ${acc ? `<button class="info-btn${acc.note ? ' has-note' : ''}" data-info-acc="${acc.id}" title="${infoTooltip(acc.note)}">i</button>` : ''}</div>
         <div class="rot-acc-counts">
           <span class="rot-acc-count rascunho">${rascunhoCount} rascunho${rascunhoCount===1?'':'s'}</span>
           <span class="rot-acc-count publicado">${publicadoCount} publicado${publicadoCount===1?'':'s'}</span>
@@ -1412,6 +1553,12 @@ function renderRoteiros(){
       const id = el.getAttribute('data-rot-acc-toggle');
       roteirosAccOpen[id] = !roteirosAccOpen[id];
       renderRoteiros();
+    });
+  });
+  body.querySelectorAll('[data-info-acc]').forEach(btn=>{
+    btn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      openInfoModal(btn.getAttribute('data-info-acc'));
     });
   });
   body.querySelectorAll('[data-section-toggle]').forEach(btn=>{
