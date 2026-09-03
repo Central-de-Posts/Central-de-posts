@@ -92,6 +92,8 @@
     transition: background .15s, color .15s;
   }
   .tab.active{ background: var(--row-hover); color: var(--text); }
+  .tab.tab-alert{ background: rgba(255,90,90,0.16); color: var(--bad); font-weight:700; }
+  .tab.tab-alert.active{ background: var(--bad); color:#fff; }
  
   .panel{ display:none; }
   .panel.active{ display:block; animation: fadein .16s ease; }
@@ -347,6 +349,33 @@
     font-family:var(--font-mono); font-size:9.5px; color:var(--muted); background: var(--surface);
     padding:1px 7px; border-radius:20px;
   }
+
+  /* anotações / post-its */
+  .notas-grid{
+    display:grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap:16px; margin-top:16px;
+  }
+  .postit{
+    position:relative; border-radius:6px; padding:14px 12px 40px; min-height:150px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.28); display:flex; flex-direction:column;
+  }
+  .postit-text{
+    flex:1; width:100%; background:transparent; border:none; resize:none; outline:none;
+    font-family: var(--font-body); font-size:13.5px; line-height:1.45; color:#1c1c1c;
+  }
+  .postit-text::placeholder{ color: rgba(0,0,0,0.4); }
+  .postit-bottom{
+    position:absolute; left:10px; right:10px; bottom:10px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .postit-colors{ display:flex; gap:5px; }
+  .postit-color-dot{
+    width:15px; height:15px; border-radius:50%; border:2px solid rgba(0,0,0,0.15); cursor:pointer; padding:0;
+  }
+  .postit-color-dot.active{ border-color:#1c1c1c; }
+  .postit-del{
+    background:none; border:none; color: rgba(0,0,0,0.45); font-size:15px; cursor:pointer; line-height:1; padding:2px 4px;
+  }
+  .postit-del:hover{ color: rgba(0,0,0,0.8); }
+  .postit-empty{ color:var(--muted); grid-column: 1/-1; text-align:center; padding:30px 0; }
 </style>
 </head>
 <body>
@@ -406,6 +435,13 @@
     <div id="ranking-body"></div>
   </div>
  
+  <!-- ANOTAÇÕES -->
+  <div class="panel" id="panel-anotacoes">
+    <p class="section-sub">Ideias soltas, lembretes, coisas pra fazer. Cada post-it é independente e salva sozinho.</p>
+    <button class="rot-add-btn" id="nota-add-btn" style="background:var(--bad);">+ Novo post-it</button>
+    <div class="notas-grid" id="notas-body"></div>
+  </div>
+
   <!-- EVOLUÇÃO -->
   <div class="panel" id="panel-evolucao">
     <p class="section-sub">Clique numa conta pra ver a evolução de posts e de seguidores. O número ao lado de cada conta (ex: <span style="color:var(--good); font-weight:600;">▲ +189</span>) é o total acumulado <strong>desde o primeiro registro</strong> dessa conta — não é de 7 dias nem de 1 mês, é o histórico completo, e vai só crescendo (ou caindo) conforme os seguidores mudam, sem nunca reiniciar sozinho.</p>
@@ -518,7 +554,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 const STATE_ROW_ID = 'main';
  
-let state = { accounts: [], entries: [], roteiros: [] };
+let state = { accounts: [], entries: [], roteiros: [], notas: [] };
 let saveTimer = null;
 let pendingSave = false;
 let saveRetryCount = 0;
@@ -545,7 +581,7 @@ function seed(){
     {id:'ig-3', platform:'instagram', name:'Renan Sarabia', initialFollowers:262},
   ];
   const entries = accounts.map(a => ({date: '2026-08-29', accountId: a.id, posts: 0, followers: a.initialFollowers}));
-  return { accounts, entries, roteiros: [] };
+  return { accounts, entries, roteiros: [], notas: [] };
 }
  
 async function loadData(){
@@ -558,6 +594,7 @@ async function loadData(){
       if(data && data.data){
         state = data.data;
         if(!state.roteiros) state.roteiros = [];
+        if(!state.notas) state.notas = [];
         return;
       }
       break; // request succeeded and genuinely found nothing -> first run
@@ -1150,6 +1187,72 @@ function renderHistorico(){
   });
 }
  
+// ---- ANOTAÇÕES (post-its) ----
+const POSTIT_COLORS = ['#FFE58A', '#FF9FB2', '#9FD8FF', '#B8F2C2', '#FFC48A', '#D8C4FF'];
+
+function genNotaId(){
+  return 'nota-' + Date.now() + '-' + Math.random().toString(36).slice(2,8);
+}
+
+function renderNotas(){
+  const body = document.getElementById('notas-body');
+  if(!state.notas) state.notas = [];
+  if(!state.notas.length){
+    body.innerHTML = '<p class="postit-empty">Nenhum post-it ainda — clique em "+ Novo post-it" pra anotar alguma coisa.</p>';
+    return;
+  }
+  const sorted = [...state.notas].sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+  body.innerHTML = sorted.map(n=>{
+    const color = n.color || POSTIT_COLORS[0];
+    const dots = POSTIT_COLORS.map(c=> `<button class="postit-color-dot${c===color?' active':''}" data-nota-color="${n.id}" data-color-value="${c}" style="background:${c};" title="Mudar cor"></button>`).join('');
+    return `<div class="postit" style="background:${color};">
+      <textarea class="postit-text" data-nota-id="${n.id}" placeholder="Escreva aqui...">${escapeHtml(n.text||'')}</textarea>
+      <div class="postit-bottom">
+        <div class="postit-colors">${dots}</div>
+        <button class="postit-del" data-nota-del="${n.id}" title="Apagar post-it">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  body.querySelectorAll('[data-nota-id]').forEach(ta=>{
+    let saveTimeout = null;
+    ta.addEventListener('input', ()=>{
+      const n = state.notas.find(x=>x.id===ta.getAttribute('data-nota-id'));
+      if(!n) return;
+      n.text = ta.value;
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(()=> saveData(false), 500);
+    });
+  });
+  body.querySelectorAll('[data-nota-color]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const n = state.notas.find(x=>x.id===btn.getAttribute('data-nota-color'));
+      if(!n) return;
+      n.color = btn.getAttribute('data-color-value');
+      await saveData(true);
+      renderNotas();
+    });
+  });
+  body.querySelectorAll('[data-nota-del]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Apagar esse post-it?')) return;
+      state.notas = state.notas.filter(x=>x.id!==btn.getAttribute('data-nota-del'));
+      await saveData(true);
+      renderNotas();
+    });
+  });
+}
+
+document.getElementById('nota-add-btn').addEventListener('click', async ()=>{
+  if(!state.notas) state.notas = [];
+  const color = POSTIT_COLORS[Math.floor(Math.random()*POSTIT_COLORS.length)];
+  state.notas.push({ id: genNotaId(), text: '', color, createdAt: new Date().toISOString() });
+  await saveData(true);
+  renderNotas();
+  const areas = document.querySelectorAll('#notas-body .postit-text');
+  if(areas.length) areas[0].focus();
+});
+
 // ---- ROTEIROS ----
 let rotEditingId = null;
 let rotLockedChannelId = null; // canal do item sendo editado — não pode ser desmarcado
@@ -1615,6 +1718,7 @@ const TAB_DEFS = [
   { key:'seguidores', label:'Seguidores' },
   { key:'hoje',       label:'Posts' },
   { key:'grade',      label:'Grade' },
+  { key:'anotacoes',  label:'📌 Anotações', alert:true },
   { key:'evolucao',   label:'Evolução' },
   { key:'historico',  label:'Histórico' },
   { key:'roteiros',   label:'Roteiros' },
@@ -1631,7 +1735,7 @@ function renderTabsBar(){
   const container = document.getElementById('tabs-container');
   const current = document.querySelector('.tab.active')?.getAttribute('data-tab') || TAB_DEFS[0].key;
   container.innerHTML = TAB_DEFS.map(def=>{
-    return `<button class="tab${def.key===current?' active':''}" data-tab="${def.key}" type="button">${def.label}</button>`;
+    return `<button class="tab${def.key===current?' active':''}${def.alert?' tab-alert':''}" data-tab="${def.key}" type="button">${def.label}</button>`;
   }).join('');
   container.querySelectorAll('.tab').forEach(btn=>{
     btn.addEventListener('click', ()=> selectTab(btn.getAttribute('data-tab')));
@@ -1645,6 +1749,7 @@ function renderAll(){
   renderHoje();
   renderSeguidores();
   renderGrade();
+  renderNotas();
   renderEvolucao();
   renderHistorico();
   renderRoteiros();
